@@ -6,8 +6,8 @@ export default defineConfig(async () => ({
   build: {
     rollupOptions: {
       input: {
-        main: "./src/console.js",
-        console: "./src/presenter.js",
+        console: "./console.html",
+        presenter: "./presenter.html",
       },
     }
   },

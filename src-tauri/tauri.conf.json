@@ -52,7 +52,7 @@
       }
     },
     "security": {
-      "csp": "default-src 'self'; img-src 'self' asset: https://asset.localhost/*;"
+      "csp": "default-src 'self' 'unsafe-inline'; img-src 'self' asset: https://asset.localhost/*;"
     },
     "bundle": {
       "active": true,
@@ -74,7 +74,7 @@
         "title": "Initiative Tracker: Console",
         "width": 540,
         "height": 600,
-        "url": "index.html"
+        "url": "console.html"
       }
     ]
   }

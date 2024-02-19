@@ -24,11 +24,8 @@
         "height": 600,
         "url": "presenter.html"
       })
-      debugger;
       webview.show()
     }
-    // let visible = await presenter?.isVisible()
-    // if(!visible) await presenter?.show();
   }
 
   const loadState = async () => {
