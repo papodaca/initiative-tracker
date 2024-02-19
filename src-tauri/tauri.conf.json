@@ -1,0 +1,81 @@
+{
+  "build": {
+    "beforeDevCommand": "bun run dev",
+    "beforeBuildCommand": "bun run build",
+    "devPath": "http://localhost:1420",
+    "distDir": "../dist"
+  },
+  "package": {
+    "productName": "Initiative Tracker",
+    "version": "1.0.0"
+  },
+  "tauri": {
+    "allowlist": {
+      "all": false,
+      "shell": {
+        "open": true
+      },
+      "window": {
+        "show":true,
+        "create": true,
+        "setFullscreen": true
+      },
+      "dialog": {
+        "open": true
+      },
+      "path":{
+        "all": true
+      },
+      "fs": {
+        "readFile": true,
+        "scope": [
+          "**/*.jpg",
+          "**/*.jpeg",
+          "**/*.png",
+          "**/*.webp",
+          "**/*.bmp",
+          "**/*.tiff",
+          "**/*.gif"
+        ]
+      },
+      "protocol": {
+        "asset": true,
+        "assetScope": [
+          "**/*.jpg",
+          "**/*.jpeg",
+          "**/*.png",
+          "**/*.webp",
+          "**/*.bmp",
+          "**/*.tiff",
+          "**/*.gif"
+        ]
+      }
+    },
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' asset: https://asset.localhost/*;"
+    },
+    "bundle": {
+      "active": true,
+      "targets": "all",
+      "identifier": "im.apodaca.initiative-tracker",
+      "icon": [
+        "icons/32x32.png",
+        "icons/128x128.png",
+        "icons/128x128@2x.png",
+        "icons/icon.icns",
+        "icons/icon.ico"
+      ]
+    },
+    "windows": [
+      {
+        "label": "console",
+        "fullscreen": false,
+        "resizable": true,
+        "title": "Initiative Tracker: Console",
+        "width": 540,
+        "height": 600,
+        "url": "index.html"
+      }
+    ]
+  }
+}
