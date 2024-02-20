@@ -20,9 +20,9 @@ asdf install
 ```
 3. Install dependencies
 ```bash
-bun install
+yarn install
 ```
 4. Run development
 ```bash
-bun tauri dev
+yarn tauri dev
 ```
