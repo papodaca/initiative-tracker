@@ -18,7 +18,8 @@
       "window": {
         "show":true,
         "create": true,
-        "setFullscreen": true
+        "setFullscreen": true,
+        "close": true
       },
       "dialog": {
         "open": true

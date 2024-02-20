@@ -1,5 +1,5 @@
 <script>
-  import { WebviewWindow } from "@tauri-apps/api/window"
+  import { WebviewWindow, appWindow } from "@tauri-apps/api/window"
   import { onMount } from "svelte"
 
   import PlayerList from "./components/PlayerList.svelte"
@@ -7,16 +7,17 @@
   import { getState, setState as setStoreState } from "./store"
   import { toTitleCase } from "./utils"
 
-  
-
   const DEFAULT_HEALTH = 10 
 
-  let state = {}, sortable = false, newCampaignName
+  let state = {}, presenterFullscreen = false, newCampaignName, presenter
+
+  presenter = WebviewWindow.getByLabel("presenter");
 
   const openPresenter = async () => {
-    let presenter = WebviewWindow.getByLabel("presenter");
+    presenter = WebviewWindow.getByLabel("presenter");
     if (presenter == null) {
-      const webview = new WebviewWindow('presenter', {
+      presenterFullscreen = false
+      presenter = new WebviewWindow('presenter', {
         "fullscreen": false,
         "resizable": true,
         "title": "Initiative Tracker: Presenter",
@@ -24,9 +25,25 @@
         "height": 600,
         "url": "presenter.html"
       })
-      webview.show()
+      presenter.show()
+
+      presenter.listen('tauri://destroyed', () => presenter = null)
+      presenter.listen('fullscreen', (event) => { presenterFullscreen = event.payload.fullscreen })
     }
   }
+  const togglePresenterFullscreen = async () => {
+    presenterFullscreen = !presenterFullscreen
+    presenter.emit('set-fullscreen', { fullscreen: presenterFullscreen })
+  }
+
+  const closePresenter = async () => {
+    await presenter.close()
+    presenter = null
+  }
+  appWindow.listen('tauri://close-requested', async () => {
+    await closePresenter()
+    appWindow.close()
+  })
 
   const loadState = async () => {
     state = await getState()
@@ -81,9 +98,6 @@
     }, false)
     sortList()
     broadcastState()
-  }
-  const toggleSortable = (_e) => {
-    sortable = !sortable
   }
   const sortList = () => {
     updateCampaign({
@@ -209,6 +223,10 @@
   button.btn {
     margin-bottom: 5px;
   }
+  button.btn[disabled],
+  button.btn:disabled {
+    cursor: not-allowed;
+  }
 </style>
 Campaign:&nbsp;
 <select class="form-control" bind:value={state.currentCampaign} on:change={broadcastState}>
@@ -221,25 +239,21 @@ Campaign:&nbsp;
   <i class="fa-regular fa-square-plus"></i>&nbsp;Add Campaign
 </button>
 <br/>
-<button class="btn btn-primary" on:click={openPresenter}>
+<button class="btn btn-primary" on:click={openPresenter} disabled={presenter != null}>
   <i class="fa-solid fa-arrow-up-right-from-square"></i>&nbsp;Open Presenter
+</button>
+<button class="btn btn-primary" on:click={togglePresenterFullscreen} disabled={presenter == null}>
+  {#if presenterFullscreen}
+    <i class="fa-solid fa-minimize"></i>&nbsp;Presenter
+  {:else}
+    <i class="fa-solid fa-expand"></i>&nbsp;Presenter
+  {/if}
+</button>
+<button class="btn btn-danger" on:click={closePresenter} disabled={presenter == null}>
+  <i class="fa-solid fa-circle-xmark"></i>&nbsp;Presenter
 </button>
 <button class="btn btn-primary" on:click={setSate}>
   <i class="fa-solid fa-rotate-right"></i>&nbsp;Set Default
-</button>
-<button class="btn btn-primary" on:click={toggleSortable}>
-  {#if sortable}
-    <i class="fa-solid fa-arrow-down-wide-short"></i>&nbsp;Disable Sortable
-  {:else}
-    <i class="fa-solid fa-arrow-down-wide-short"></i>&nbsp;Make Sortable
-  {/if}
-</button>
-<button class="btn btn-primary" on:click={toggle('initiativeVisible')}>
-  {#if state[state.currentCampaign] && state[state.currentCampaign].initiativeVisible}
-    <i class="fa-solid fa-eye-slash"></i>&nbsp;Hide
-  {:else}
-    <i class="fa-solid fa-eye"></i>&nbsp;Show
-  {/if}
 </button><br/>
 <button class="btn btn-success" on:click={addPlayer('player')}>
   <i class="fa-regular fa-square-plus"></i>&nbsp;Add Player
@@ -294,7 +308,6 @@ Dsiplay Size: <input type="range" min="1" max="5" step="0.1" bind:value={state.d
   <PlayerList
     players={state[state.currentCampaign] && state[state.currentCampaign].players}
     on:update={playersChange}
-    sortable={sortable}
     initiative={false}
     healthVisible={true}
     enemyHealthVisible={true} />
