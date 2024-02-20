@@ -1,4 +1,4 @@
-# ![App Icon](public/icons/apple-icon-72x72.png) Initiative Tracker
+# ![App Icon](src-tauri/icons/Square71x71Logo.png) Initiative Tracker
 
 Track initiative for your campaigns on a secondary monitor.
 
@@ -14,11 +14,15 @@ Track initiative for your campaigns on a secondary monitor.
 ## Development
 
 1. Install [asdf](https://asdf-vm.com/).
-2. install tools
+2. Install tools
 ```bash
 asdf install
 ```
-3. Run development
+3. Install dependencies
+```bash
+bun install
+```
+4. Run development
 ```bash
 bun tauri dev
 ```
