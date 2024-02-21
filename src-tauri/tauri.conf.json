@@ -7,7 +7,7 @@
   },
   "package": {
     "productName": "Initiative Tracker",
-    "version": "1.0.0"
+    "version": "1.0.1"
   },
   "tauri": {
     "allowlist": {
@@ -53,7 +53,7 @@
       }
     },
     "security": {
-      "csp": "default-src 'self' 'unsafe-inline'; img-src 'self' asset: https://asset.localhost/*;"
+      "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: https://asset.localhost/;"
     },
     "bundle": {
       "active": true,

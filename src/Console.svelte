@@ -4,7 +4,7 @@
 
   import PlayerList from "./components/PlayerList.svelte"
   import ImageList from "./components/ImageList.svelte"
-  import { getState, setState as setStoreState } from "./store"
+  import { getState, setState as setStoreState, saveStore } from "./store"
   import { toTitleCase } from "./utils"
 
   const DEFAULT_HEALTH = 10 
@@ -37,10 +37,12 @@
   }
 
   const closePresenter = async () => {
+    if (presenter == null) return
     await presenter.close()
     presenter = null
   }
   appWindow.listen('tauri://close-requested', async () => {
+    await saveStore()
     await closePresenter()
     appWindow.close()
   })

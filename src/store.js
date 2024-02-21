@@ -10,4 +10,6 @@ export let setState = async (state) => {
     emit('state-change', state)
 }
 
+export let saveStore = () => store.save()
+
 export default store
