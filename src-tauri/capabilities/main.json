@@ -4,7 +4,8 @@
   "description": "Capability for the main window",
   "windows": [
     "main",
-    "presenter"
+    "presenter",
+    "compendium"
   ],
   "permissions": [
     "path:default",
@@ -20,7 +21,12 @@
     "window:allow-show",
     "window:allow-hide",
     "window:allow-set-fullscreen",
-    "window:allow-destroy"
+    "window:allow-destroy",
+    "os:allow-os-type",
+    "sql:allow-load",
+    "sql:allow-execute",
+    "sql:allow-select",
+    "sql:allow-close"
   ],
   "platforms": [
     "linux",

@@ -1,7 +1,10 @@
 <script>
   import { createEventDispatcher } from "svelte"
+  
   import { convertFileSrc, invoke } from '@tauri-apps/api/core';
+
   import InPlaceEdit from "./InPlaceEdit.svelte"
+
   const dispatch = createEventDispatcher();
 
   export let images = []

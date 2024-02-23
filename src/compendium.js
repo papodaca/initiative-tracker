@@ -4,10 +4,8 @@ import "@fortawesome/fontawesome-free/css/regular.min.css"
 import "@fortawesome/fontawesome-free/css/solid.min.css"
 
 import "./presenter.css"
-import Presenter from "./Presenter.svelte"
+import Compendium from "./Compendium.svelte"
 
-const presenter = new Presenter({
+const compendium = new Compendium({
   target: document.getElementById("app")
 })
-
-export default presenter

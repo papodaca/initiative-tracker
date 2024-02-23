@@ -8,10 +8,12 @@
   import ImageList from "./components/ImageList.svelte"
   import { getState, setState as setStoreState, saveStore } from "./store"
   import { toTitleCase } from "./utils"
+  import Compendium from "./Compendium.svelte"
+  import { closeDb } from "./db"
 
   const DEFAULT_HEALTH = 10 
 
-  let state = {}, presenterFullscreen = false, newCampaignName, presenter, presenterVisible = false, appWindow
+  let state = {}, presenterFullscreen = false, newCampaignName, presenter, presenterVisible = false, appWindow, compendium, compendiumVisible = false
 
   appWindow = getCurrent()
   presenter = WebviewWindow.getByLabel("presenter")
@@ -39,9 +41,27 @@
 
   appWindow.onCloseRequested(async () => {
     await saveStore()
+    await closeDb()
     presenter.destroy()
+    compendium.destroy()
     appWindow.destroy()
   })
+
+  compendium = WebviewWindow.getByLabel("compendium")
+  compendium.onCloseRequested(async (event) =>{
+    event.preventDefault?.()
+    closeCompendium()
+  })
+
+  const openCompendium = async () => {
+    compendium.show()
+    compendiumVisible = true
+  }
+
+  const closeCompendium = async () => {
+    await compendium.hide()
+    compendiumVisible = false
+  }
 
   const loadState = async () => {
     presenter = WebviewWindow.getByLabel("presenter");
@@ -250,6 +270,15 @@ Campaign:&nbsp;
     <i class="fa-solid fa-expand"></i>&nbsp;Presenter
   {/if}
 </button>
+{#if !compendiumVisible}
+<button class="btn btn-primary" on:click={openCompendium}>
+  <i class="fa-solid fa-arrow-up-right-from-square"></i>&nbsp;Compendium
+</button>
+{:else}
+<button class="btn btn-danger" on:click={closeCompendium}>
+  <i class="fa-solid fa-circle-xmark"></i>&nbsp;Compendium
+</button>
+{/if}
 <button class="btn btn-danger" on:click={closePresenter} disabled={!presenterVisible}>
   <i class="fa-solid fa-circle-xmark"></i>&nbsp;Presenter
 </button>

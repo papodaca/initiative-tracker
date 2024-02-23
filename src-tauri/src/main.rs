@@ -1,6 +1,11 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+#[cfg(not(target_os = "linux"))]
+use tauri_plugin_dialog::DialogExt;
+
+use tauri_plugin_sql::{Migration, MigrationKind};
+
 #[cfg(target_os = "linux")]
 #[tauri::command]
 async fn get_files(window: tauri::Window) -> Vec<String> {
@@ -22,9 +27,6 @@ async fn get_files(window: tauri::Window) -> Vec<String> {
     }
     files_paths
 }
-
-#[cfg(not(target_os = "linux"))]
-use tauri_plugin_dialog::DialogExt;
 
 #[cfg(not(target_os = "linux"))]
 #[tauri::command]
@@ -49,9 +51,23 @@ async fn get_files(window: tauri::Window) -> Vec<String> {
 }
 
 fn main() {
+    let migrations = vec![
+        Migration {
+            version: 1,
+            description: "create_initial_tables",
+            sql: "CREATE TABLE monsters (slug TEXT PRIMARY KEY, data JSONB);",
+            kind: MigrationKind::Up,
+        }
+    ];
+
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_store::Builder::default().build())
+        .plugin(tauri_plugin_os::init())
+        .plugin(tauri_plugin_sql::Builder::default()
+            .add_migrations("sqlite:compendium.db", migrations)
+            .build()
+        )
         .invoke_handler(tauri::generate_handler![get_files])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

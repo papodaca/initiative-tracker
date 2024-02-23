@@ -35,12 +35,24 @@
         "width": 800,
         "height": 600,
         "url": "presenter.html"
+      },
+      {
+        "label": "compendium",
+        "parent": "main",
+        "closable": false,
+        "visible": false,
+        "fullscreen": false,
+        "resizable": true,
+        "title": "Initiative Tracker: Compendium",
+        "width": 800,
+        "height": 600,
+        "url": "compendium.html"
       }
     ]
   },
   "build": {
-    "beforeBuildCommand": "yarn run build",
-    "beforeDevCommand": "yarn run dev",
+    "beforeBuildCommand": "yarn vite build",
+    "beforeDevCommand": "yarn vite",
     "devUrl": "http://localhost:1420",
     "frontendDist": "../dist"
   },
