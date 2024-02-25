@@ -1,6 +1,8 @@
 <script>
-  import { WebviewWindow, appWindow } from "@tauri-apps/api/window"
+  import { WebviewWindow, getCurrent } from "@tauri-apps/api/webviewWindow"
   import { onMount } from "svelte"
+
+  import { listen } from '@tauri-apps/api/event'
 
   import PlayerList from "./components/PlayerList.svelte"
   import ImageList from "./components/ImageList.svelte"
@@ -9,45 +11,42 @@
 
   const DEFAULT_HEALTH = 10 
 
-  let state = {}, presenterFullscreen = false, newCampaignName, presenter
+  let state = {}, presenterFullscreen = false, newCampaignName, presenter, presenterVisible = false, appWindow
 
-  presenter = WebviewWindow.getByLabel("presenter");
+  appWindow = getCurrent()
+  presenter = WebviewWindow.getByLabel("presenter")
 
   const openPresenter = async () => {
-    presenter = WebviewWindow.getByLabel("presenter");
-    if (presenter == null) {
-      presenterFullscreen = false
-      presenter = new WebviewWindow('presenter', {
-        "fullscreen": false,
-        "resizable": true,
-        "title": "Initiative Tracker: Presenter",
-        "width": 800,
-        "height": 600,
-        "url": "presenter.html"
-      })
+    if (presenter == null) return
+    if (!presenterVisible) {
       presenter.show()
-
-      presenter.listen('tauri://destroyed', () => presenter = null)
-      presenter.listen('fullscreen', (event) => { presenterFullscreen = event.payload.fullscreen })
+      presenterVisible = true
     }
   }
+
   const togglePresenterFullscreen = async () => {
     presenterFullscreen = !presenterFullscreen
     presenter.emit('set-fullscreen', { fullscreen: presenterFullscreen })
   }
+  listen('fullscreen', (event) => { presenterFullscreen = event.payload.fullscreen })
 
-  const closePresenter = async () => {
+  const closePresenter = async (event) => {
+    event?.preventDefault?.()
     if (presenter == null) return
-    await presenter.close()
-    presenter = null
+    await presenter.hide()
+    presenterVisible = false
   }
-  appWindow.listen('tauri://close-requested', async () => {
+
+  appWindow.onCloseRequested(async () => {
     await saveStore()
-    await closePresenter()
-    appWindow.close()
+    presenter.destroy()
+    appWindow.destroy()
   })
 
   const loadState = async () => {
+    presenter = WebviewWindow.getByLabel("presenter");
+    presenterVisible = await presenter.isVisible()
+    presenter.onCloseRequested(closePresenter)
     state = await getState()
     if(state == null) state = {}
     let changed = false
@@ -241,17 +240,17 @@ Campaign:&nbsp;
   <i class="fa-regular fa-square-plus"></i>&nbsp;Add Campaign
 </button>
 <br/>
-<button class="btn btn-primary" on:click={openPresenter} disabled={presenter != null}>
+<button class="btn btn-primary" on:click={openPresenter} disabled={presenterVisible}>
   <i class="fa-solid fa-arrow-up-right-from-square"></i>&nbsp;Open Presenter
 </button>
-<button class="btn btn-primary" on:click={togglePresenterFullscreen} disabled={presenter == null}>
+<button class="btn btn-primary" on:click={togglePresenterFullscreen} disabled={!presenterVisible}>
   {#if presenterFullscreen}
     <i class="fa-solid fa-minimize"></i>&nbsp;Presenter
   {:else}
     <i class="fa-solid fa-expand"></i>&nbsp;Presenter
   {/if}
 </button>
-<button class="btn btn-danger" on:click={closePresenter} disabled={presenter == null}>
+<button class="btn btn-danger" on:click={closePresenter} disabled={!presenterVisible}>
   <i class="fa-solid fa-circle-xmark"></i>&nbsp;Presenter
 </button>
 <button class="btn btn-primary" on:click={setSate}>

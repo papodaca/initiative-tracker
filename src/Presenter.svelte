@@ -1,11 +1,11 @@
 <script>
   import { onMount } from "svelte";
   import { listen, emit } from '@tauri-apps/api/event'
-  import { WebviewWindow } from "@tauri-apps/api/window"
+  import { WebviewWindow, getCurrent } from "@tauri-apps/api/webviewWindow"
   import PlayerList from "./components/PlayerList.svelte";
   import { getState } from "./store"
     import { event } from "@tauri-apps/api";
-  let state = {}, fullscreenState = false;
+  let state = {}, fullscreenState = false, presenter = getCurrent()
 
   const incomingState = async (s) => {
     state = s
@@ -16,7 +16,6 @@
   }
   const setFullscreen = async (fullscreen) => {
     fullscreenState = fullscreen
-    let presenter = WebviewWindow.getByLabel("presenter")
     if (presenter == null) return
     await presenter.setFullscreen(fullscreen)
     emit('fullscreen', { fullscreen })

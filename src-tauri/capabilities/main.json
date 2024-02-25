@@ -1,9 +1,10 @@
 {
-  "$schema": "./schemas/desktop-schema.json",
+  "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Capability for the main window",
   "windows": [
-    "main"
+    "main",
+    "presenter"
   ],
   "permissions": [
     "path:default",
@@ -13,6 +14,13 @@
     "resources:default",
     "menu:default",
     "tray:default",
-    "shell:allow-open"
+    "dialog:allow-open",
+    "store:allow-get",
+    "store:allow-set",
+    "store:allow-save",
+    "window:allow-show",
+    "window:allow-hide",
+    "window:allow-set-fullscreen",
+    "window:allow-destroy"
   ]
 }

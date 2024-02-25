@@ -23,6 +23,18 @@
         "title": "Initiative Tracker: Console",
         "url": "console.html",
         "width": 540
+      },
+      {
+        "label": "presenter",
+        "parent": "main",
+        "closable": false,
+        "visible": false,
+        "fullscreen": false,
+        "resizable": true,
+        "title": "Initiative Tracker: Presenter",
+        "width": 800,
+        "height": 600,
+        "url": "presenter.html"
       }
     ]
   },
@@ -44,11 +56,6 @@
     "targets": "all"
   },
   "identifier": "im.apodaca.initiative-tracker",
-  "plugins": {
-    "shell": {
-      "open": true
-    }
-  },
   "productName": "Initiative Tracker",
   "version": "1.0.1"
 }
