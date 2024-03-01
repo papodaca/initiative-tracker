@@ -15,6 +15,10 @@ tauri = { version = "2.0.0-beta", features = ["protocol-asset"] }
 serde_json = "1.0"
 tauri-plugin-dialog = "2.0.0-beta"
 tauri-plugin-store = "2.0.0-beta"
+tauri-plugin-os = "2.0.0-beta"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+rfd = { version = "0.14.0", default-features = false, features = ["gtk3"] }
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem

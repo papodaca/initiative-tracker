@@ -1,7 +1,8 @@
 <script>
   import { createEventDispatcher } from "svelte"
   import { open } from '@tauri-apps/plugin-dialog'
-  import { convertFileSrc } from '@tauri-apps/api/core';
+  import { convertFileSrc, invoke } from '@tauri-apps/api/core';
+  import { platform } from '@tauri-apps/plugin-os';
   import InPlaceEdit from "./InPlaceEdit.svelte"
   const dispatch = createEventDispatcher();
 
@@ -11,18 +12,25 @@
     dispatch("update", images);
   })
 
-  const openFiles = () => (open({
-    multiple: true,
-    filters: [{
-      name: "Image",
-      extensions: ["png", "jpeg", "jpg", "webp", "bmp", "tiff", "gif"]
-    }]
-  }))
-
   const openImages = async () => {
-    let filePaths = await openFiles()
-    if (filePaths == null) return
-    if (typeof filePaths === "string") filePaths = [filePaths]
+    let currentPlatform = await platform();
+    let filePaths = [];
+    if (currentPlatform === "linux") {
+      // dialog is broken on linux invoke rfd command
+      filePaths = await invoke('get_files')
+      if (filePaths.length === 0) return
+    } else {
+      filePaths = await open({
+        multiple: true,
+        filters: [{
+          name: "Image",
+          extensions: ["png", "jpeg", "jpg", "webp", "bmp", "tiff", "gif"]
+        }]
+      })
+      if (filePaths == null) return
+      if (typeof filePaths === "string") filePaths = [filePaths]
+    }
+
 
     if (images == null) images = []
 

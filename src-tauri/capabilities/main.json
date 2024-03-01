@@ -21,6 +21,7 @@
     "window:allow-show",
     "window:allow-hide",
     "window:allow-set-fullscreen",
-    "window:allow-destroy"
+    "window:allow-destroy",
+    "os:allow-platform"
   ]
 }

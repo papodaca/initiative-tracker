@@ -335,6 +335,13 @@
   dependencies:
     "@tauri-apps/api" "2.0.0-beta.2"
 
+"@tauri-apps/plugin-os@^2.0.0-beta.1":
+  version "2.0.0-beta.1"
+  resolved "https://registry.yarnpkg.com/@tauri-apps/plugin-os/-/plugin-os-2.0.0-beta.1.tgz#70e3fd5b50859138b81dba1d999a067246fda2d8"
+  integrity sha512-fQ0rPJjuAppOtRlBULIn7vc9oNgP8aIi58Q48HvrIZ2ndysxEEO5TW4hkFCU+BXB/b6Y24lwhLBiC8kCzUcLew==
+  dependencies:
+    "@tauri-apps/api" "2.0.0-beta.2"
+
 "@tauri-apps/plugin-store@^2.0.0-beta.1":
   version "2.0.0-beta.1"
   resolved "https://registry.yarnpkg.com/@tauri-apps/plugin-store/-/plugin-store-2.0.0-beta.1.tgz#f757a3eb0ac677633b28b30ad3ae1d1b6431b61c"

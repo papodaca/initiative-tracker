@@ -1802,10 +1802,12 @@ dependencies = [
 name = "initiative-tracker"
 version = "1.0.0"
 dependencies = [
+ "rfd",
  "serde_json",
  "tauri",
  "tauri-build",
  "tauri-plugin-dialog",
+ "tauri-plugin-os",
  "tauri-plugin-store",
 ]
 
@@ -2340,6 +2342,17 @@ checksum = "9aa2b01e1d916879f73a53d01d1d6cee68adbb31d6d9177a8cfce093cced1d50"
 dependencies = [
  "futures-core",
  "pin-project-lite",
+]
+
+[[package]]
+name = "os_info"
+version = "3.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "006e42d5b888366f1880eda20371fedde764ed2213dc8496f49622fa0c99cd5e"
+dependencies = [
+ "log",
+ "serde",
+ "winapi 0.3.9",
 ]
 
 [[package]]
@@ -3429,6 +3442,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2047c6ded9c721764247e62cd3b03c09ffc529b2ba5b10ec482ae507a4a70160"
 
 [[package]]
+name = "sys-locale"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e801cf239ecd6ccd71f03d270d67dd53d13e90aab208bf4b8fe4ad957ea949b0"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "system-configuration"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3683,6 +3705,24 @@ dependencies = [
  "thiserror",
  "url",
  "uuid",
+]
+
+[[package]]
+name = "tauri-plugin-os"
+version = "2.0.0-beta.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1f9bd936030047ce0143dda585f908f4e8433089c4aa95ef182959283483abfb"
+dependencies = [
+ "gethostname",
+ "log",
+ "os_info",
+ "serde",
+ "serde_json",
+ "serialize-to-javascript",
+ "sys-locale",
+ "tauri",
+ "tauri-plugin",
+ "thiserror",
 ]
 
 [[package]]
