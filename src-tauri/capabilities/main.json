@@ -14,14 +14,17 @@
     "resources:default",
     "menu:default",
     "tray:default",
-    "dialog:allow-open",
     "store:allow-get",
     "store:allow-set",
     "store:allow-save",
     "window:allow-show",
     "window:allow-hide",
     "window:allow-set-fullscreen",
-    "window:allow-destroy",
-    "os:allow-platform"
+    "window:allow-destroy"
+  ],
+  "platforms": [
+    "linux",
+    "macOS",
+    "windows"
   ]
 }
