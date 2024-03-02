@@ -1,10 +1,12 @@
 <script>
-  import { onMount } from "svelte";
+  import { onMount } from "svelte"
+
   import { listen, emit } from '@tauri-apps/api/event'
   import { WebviewWindow, getCurrent } from "@tauri-apps/api/webviewWindow"
-  import PlayerList from "./components/PlayerList.svelte";
+
+  import PlayerList from "./components/PlayerList.svelte"
   import { getState } from "./store"
-    import { event } from "@tauri-apps/api";
+
   let state = {}, fullscreenState = false, presenter = getCurrent()
 
   const incomingState = async (s) => {

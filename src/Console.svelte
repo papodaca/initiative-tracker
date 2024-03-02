@@ -1,7 +1,7 @@
 <script>
-  import { WebviewWindow, getCurrent } from "@tauri-apps/api/webviewWindow"
   import { onMount } from "svelte"
 
+  import { WebviewWindow, getCurrent } from "@tauri-apps/api/webviewWindow"
   import { listen } from '@tauri-apps/api/event'
 
   import PlayerList from "./components/PlayerList.svelte"
