@@ -1,34 +1,8 @@
 {
-  "build": {
-    "beforeDevCommand": "yarn run dev",
-    "beforeBuildCommand": "yarn run build",
-    "devPath": "http://localhost:1420",
-    "distDir": "../dist"
-  },
-  "package": {
-    "productName": "Initiative Tracker",
-    "version": "1.0.1"
-  },
-  "tauri": {
-    "allowlist": {
-      "all": false,
-      "shell": {
-        "open": true
-      },
-      "window": {
-        "show":true,
-        "create": true,
-        "setFullscreen": true,
-        "close": true
-      },
-      "dialog": {
-        "open": true
-      },
-      "path":{
-        "all": true
-      },
-      "fs": {
-        "readFile": true,
+  "app": {
+    "security": {
+      "assetProtocol": {
+        "enable": true,
         "scope": [
           "**/*.jpg",
           "**/*.jpeg",
@@ -39,44 +13,49 @@
           "**/*.gif"
         ]
       },
-      "protocol": {
-        "asset": true,
-        "assetScope": [
-          "**/*.jpg",
-          "**/*.jpeg",
-          "**/*.png",
-          "**/*.webp",
-          "**/*.bmp",
-          "**/*.tiff",
-          "**/*.gif"
-        ]
-      }
-    },
-    "security": {
-      "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: https://asset.localhost/;"
-    },
-    "bundle": {
-      "active": true,
-      "targets": "all",
-      "identifier": "im.apodaca.initiative-tracker",
-      "icon": [
-        "icons/32x32.png",
-        "icons/128x128.png",
-        "icons/128x128@2x.png",
-        "icons/icon.icns",
-        "icons/icon.ico"
-      ]
+      "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: https://asset.localhost/; connect-src ipc: http://ipc.localhost"
     },
     "windows": [
       {
-        "label": "console",
         "fullscreen": false,
+        "height": 600,
         "resizable": true,
         "title": "Initiative Tracker: Console",
-        "width": 540,
+        "url": "console.html",
+        "width": 540
+      },
+      {
+        "label": "presenter",
+        "parent": "main",
+        "closable": false,
+        "visible": false,
+        "fullscreen": false,
+        "resizable": true,
+        "title": "Initiative Tracker: Presenter",
+        "width": 800,
         "height": 600,
-        "url": "console.html"
+        "url": "presenter.html"
       }
     ]
-  }
+  },
+  "build": {
+    "beforeBuildCommand": "yarn run build",
+    "beforeDevCommand": "yarn run dev",
+    "devUrl": "http://localhost:1420",
+    "frontendDist": "../dist"
+  },
+  "bundle": {
+    "active": true,
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "targets": "all"
+  },
+  "identifier": "im.apodaca.initiative-tracker",
+  "productName": "Initiative Tracker",
+  "version": "1.5.0"
 }
