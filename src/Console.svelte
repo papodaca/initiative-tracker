@@ -9,7 +9,6 @@
   import { getState, setState as setStoreState, saveStore } from "./store"
   import { toTitleCase } from "./utils"
   import Compendium from "./Compendium.svelte"
-  import { closeDb } from "./db"
 
   const DEFAULT_HEALTH = 10 
 
@@ -41,7 +40,6 @@
 
   appWindow.onCloseRequested(async () => {
     await saveStore()
-    await closeDb()
     presenter.destroy()
     compendium.destroy()
     appWindow.destroy()

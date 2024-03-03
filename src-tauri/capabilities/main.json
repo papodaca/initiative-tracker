@@ -22,11 +22,7 @@
     "window:allow-hide",
     "window:allow-set-fullscreen",
     "window:allow-destroy",
-    "os:allow-os-type",
-    "sql:allow-load",
-    "sql:allow-execute",
-    "sql:allow-select",
-    "sql:allow-close"
+    "os:allow-os-type"
   ],
   "platforms": [
     "linux",
