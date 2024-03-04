@@ -8,7 +8,6 @@
   import ImageList from "./components/ImageList.svelte"
   import { getState, setState as setStoreState, saveStore } from "./store"
   import { toTitleCase } from "./utils"
-  import Compendium from "./Compendium.svelte"
 
   const DEFAULT_HEALTH = 10 
 

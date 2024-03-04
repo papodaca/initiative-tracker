@@ -4,6 +4,7 @@
   import { type as osType } from "@tauri-apps/plugin-os"
 
   import { loadDB, getModels } from "./db"
+  import renderers from "./renderers"
 
   let models = {}, loading = true, loadProgress = 0, currentModel = "", showPopup = false, currentPlatform, searchTerm, searchResults = []
 
@@ -36,6 +37,19 @@
       loading = true
       await loadCurrentTab()
       loading = false
+    }
+  }
+
+  const handleDatumClick = (datum, set) => {
+    return async (event) => {
+      models[datum._model] = models[datum._model].map(dat => {
+        if(dat.slug == datum.slug) {
+          dat._clicked = set
+        } else {
+          dat.clicked = false
+        }
+        return dat
+      })
     }
   }
 
@@ -127,7 +141,14 @@
 {#if !loading}
 <ul>
 {#each models[currentTab.id] as datum}
-  <li>{datum.name}</li>
+  <li>{datum.name}&nbsp;{datum._clicked}
+  {#if datum._clicked}
+    <button class="btn btn-sm btn-primary" on:click={handleDatumClick(datum, false)}>Close</button>
+    <svelte:component this={renderers[datum._model]} datum={datum} />
+  {:else}
+    <button class="btn btn-sm btn-primary" on:click={handleDatumClick(datum, true)}>View</button>
+  {/if}
+  </li>
 {/each}
 </ul>
 {/if}

@@ -6,7 +6,7 @@ export default defineConfig(async () => ({
   build: {
     rollupOptions: {
       input: {
-        // compendium: "./compendium.html",
+        compendium: "./compendium.html",
         console: "./console.html",
         presenter: "./presenter.html",
       },
