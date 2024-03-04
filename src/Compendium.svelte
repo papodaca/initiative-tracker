@@ -3,17 +3,49 @@
 
   import { type as osType } from "@tauri-apps/plugin-os"
 
-  import { loadDB, getMonsters } from "./db"
+  import { loadDB, getModels } from "./db"
 
-  let monsters = [], loading = true, loadProgress = 0, showPopup = false, currentPlatform, searchTerm, searchResults = []
+  let models = {}, loading = true, loadProgress = 0, currentModel = "", showPopup = false, currentPlatform, searchTerm, searchResults = []
+
+  let tabs = [
+    { id: "armor", name: "Armor", active: true },
+    { id: "classes", name: "Classes", active: false },
+    { id: "magicitems", name: "Magic Items", active: false },
+    { id: "monsters", name: "Monsters", active: false },
+    { id: "races", name: "Races", active: false },
+    { id: "spells", name: "Spells", active: false },
+    { id: "weapons", name: "Weapons", active: false },
+  ]
+
+  const activeTab = () => tabs.filter(tab => tab.active)[0]
+
+  let currentTab = activeTab()
+
+  const loadCurrentTab = async () => {
+    if (models[currentTab.id] != null) return
+    models[currentTab.id] = await getModels(currentTab.id)
+  }
+
+  const selectTab = (tabId) => {
+    return async (event) => {
+      tabs.forEach(tab => {
+        tab.active = false
+        if (tab.id == tabId) tab.active = true
+      });
+      currentTab = activeTab()
+      loading = true
+      await loadCurrentTab()
+      loading = false
+    }
+  }
 
   const reloadDB = (force) => {
     return async (event) => {
       loading = true
       loadProgress = 0
-      monsters = []
-      await loadDB(force, (progress) => loadProgress = progress)
-      monsters = await getMonsters()
+      if (force) models = {}
+      await loadDB(force, (model, progress) => { currentModel = model; loadProgress = progress })
+      await loadCurrentTab()
       loading = false
     }
   }
@@ -72,7 +104,7 @@
 <button class="btn btn-primary" on:click={reloadDB(true)} disabled={loading}>
   {#if loading}
     <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
-    <span role="status">Loading...</span>
+    <span role="status">Loading {currentModel}...</span>
   {:else}
     <i class="fa-solid fa-rotate-right"></i>&nbsp;Reload Database
   {/if}
@@ -84,11 +116,21 @@
   </div>
 {/if}
 
+<ul class="nav nav-tabs">
+  {#each tabs as tab}
+  <li class="nav-item">
+    <a class="nav-link" class:active={currentTab.id == tab.id} aria-current="page" href="#" on:click|preventDefault={selectTab(tab.id)}>{tab.name}</a>
+  </li>
+  {/each}
+</ul>
+
+{#if !loading}
 <ul>
-{#each monsters as monster}
-  <li>{monster.slug}</li>
+{#each models[currentTab.id] as datum}
+  <li>{datum.name}</li>
 {/each}
 </ul>
+{/if}
 
 {#if showPopup}
 <div class="modal-backdrop fade show"></div>

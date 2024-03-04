@@ -1,43 +1,48 @@
 import Dixie from 'dexie'
 
+import { callback, w } from "./utils"
+
 export const db = new Dixie('initiative-tracker')
-db.version(1).stores({
-    monsters: "&slug"
-})
 
-const insertMonsters = async (monsters) => {
-    for (let monster of monsters) {
-        await db.monsters.add(monster)
+const models = w`monsters spells classes races weapons armor magicitems`
+
+const dbConfig = {
+  [models[0]]: "&slug"
+}
+models.forEach(model => dbConfig[model] = "&slug");
+db.version(1).stores(dbConfig)
+
+export const loadDB = async (...args) => {
+  for(let model of models) {
+    await loadModel(model, ...args)
+  }
+}
+
+const loadModel = async(model, force = false, progress = null) => {
+  callback('progress', progress, model, 0)
+  let morePages = true, nextPage = null, total = 0, fetched = 0
+  let count = await db[model].count()
+  if (!force && count > 0) return
+  while (morePages) {
+    let res = await fetch(nextPage || `https://api.open5e.com/${model}/?limit=100`)
+    let data = await res.json()
+    nextPage = data.next
+    morePages = nextPage != null
+    for (let datum of data.results) {
+      await db[model].put({_model: model, ...datum})
     }
+    fetched += data.results.length
+    if (total === 0) total = data.count
+    callback('progress', progress, model, Math.ceil(fetched / total * 100))
+  }
 }
 
-export const loadDB = async (force = false, progress = (progress) => {}) => {
-    let morePages = true, nextPage = null, total = 0, fetched = 0
-    let count = await db.monsters.count()
-    if (!force && count > 0) return
-    if (force) await db.monsters.delete()
-    while(morePages) {
-        let res = await fetch(nextPage || "https://api.open5e.com/monsters/?limit=100")
-        let data = await res.json()
-        nextPage = data.next
-        morePages = nextPage != null
-        await insertMonsters(data.results)
-        fetched += data.results.length
-        if (total === 0) total = data.count
-        try {
-          progress(Math.ceil(fetched / total * 100))
-        } catch (e) {
-            console.warn("error in progress", e)
-        }
-    }
+export const getModels = async (model) => {
+  return await db[model].toArray()
 }
 
-export const getMonsters = async () => {
-    return await db.monsters.toArray()
-}
-
-export const getMonster = async (slug) => {
-    return await db.monsters.where("slug").equalsIgnoreCase(slug).first()
+export const getModel = async (model, slug) => {
+  return await db[model].where("slug").equalsIgnoreCase(slug).first()
 }
 
 export default db
