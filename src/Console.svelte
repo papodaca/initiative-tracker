@@ -258,9 +258,15 @@ Campaign:&nbsp;
   <i class="fa-regular fa-square-plus"></i>&nbsp;Add Campaign
 </button>
 <br/>
-<button class="btn btn-primary" on:click={openPresenter} disabled={presenterVisible}>
-  <i class="fa-solid fa-arrow-up-right-from-square"></i>&nbsp;Open Presenter
+{#if presenterVisible}
+<button class="btn btn-danger" on:click={closePresenter}>
+  <i class="fa-solid fa-circle-xmark"></i>&nbsp;Presenter
 </button>
+{:else}
+<button class="btn btn-primary" on:click={openPresenter}>
+  <i class="fa-solid fa-arrow-up-right-from-square"></i>&nbsp;Presenter
+</button>
+{/if}
 <button class="btn btn-primary" on:click={togglePresenterFullscreen} disabled={!presenterVisible}>
   {#if presenterFullscreen}
     <i class="fa-solid fa-minimize"></i>&nbsp;Presenter
@@ -277,9 +283,6 @@ Campaign:&nbsp;
   <i class="fa-solid fa-circle-xmark"></i>&nbsp;Compendium
 </button>
 {/if}
-<button class="btn btn-danger" on:click={closePresenter} disabled={!presenterVisible}>
-  <i class="fa-solid fa-circle-xmark"></i>&nbsp;Presenter
-</button>
 <button class="btn btn-primary" on:click={setSate}>
   <i class="fa-solid fa-rotate-right"></i>&nbsp;Set Default
 </button><br/>
