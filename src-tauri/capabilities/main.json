@@ -20,7 +20,8 @@
     "window:allow-show",
     "window:allow-hide",
     "window:allow-set-fullscreen",
-    "window:allow-destroy"
+    "window:allow-destroy",
+    "dialog:allow-open"
   ],
   "platforms": [
     "linux",

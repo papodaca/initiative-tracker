@@ -1,6 +1,7 @@
 <script>
   import { createEventDispatcher } from "svelte"
-  import { convertFileSrc, invoke } from '@tauri-apps/api/core';
+  import { convertFileSrc } from '@tauri-apps/api/core'
+  import { open } from '@tauri-apps/plugin-dialog'
   import InPlaceEdit from "./InPlaceEdit.svelte"
   const dispatch = createEventDispatcher();
 
@@ -10,21 +11,26 @@
     dispatch("update", images);
   })
 
+  const openFiles = () => (open({
+    multiple: true,
+    directory: false,
+    filters: [{
+      name: "Image",
+      extensions: ["png", "jpeg", "jpg", "webp", "bmp", "tiff", "gif"]
+    }]
+  }))
+
   const openImages = async () => {
-    let filePaths = await invoke('get_files')
-    if (filePaths.length === 0) return
+    let files = await openFiles() 
+    if (files == null) return
 
-    if (images == null) images = []
-
-    for(let filePath of filePaths) {
-      let fileUrl = new URL(`file://${filePath}`)
-      let urlParts = fileUrl.pathname.split("/")
-      let filenameExt = urlParts[urlParts.length - 1].split(".")
+    for(let file of files) {
+      let filenameExt = file.name.split(".")
       let name = filenameExt.slice(0, filenameExt.length - 1).join(".")
       images.push({
         id: crypto.randomUUID(),
         name,
-        fileUrl: convertFileSrc(filePath),
+        fileUrl: convertFileSrc(file.path),
         active: false
       })
     }
