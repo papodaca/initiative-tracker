@@ -89,11 +89,14 @@
 
   .list-group.initiative-list .list-group-item div.text {
     opacity: 0.9;
-    background-color: var(--bs-body-bg);
+    background-color: #f8fafc;
+  }
+  :global([data-theme="dark"]) .list-group.initiative-list .list-group-item div.text {
+    background-color: #1e293b;
   }
   .list-group.initiative-list .list-group-item.active div.text {
     opacity: 0.9;
-    background-color: var(--bs-active-bg);
+    background-color: #2563eb;
   }
 
   .list-group .list-group-item div.text .initiative {
