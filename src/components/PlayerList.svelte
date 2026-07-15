@@ -133,7 +133,7 @@
     background: var(--color-edge);
     padding: 0.25em 0.5em;
     border-radius: 12px;
-    font-size: 0.6875em;
+    font-size: 1em;
     font-family: monospace;
     white-space: nowrap;
   }
