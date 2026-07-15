@@ -6,6 +6,7 @@
 
   import PlayerList from "./components/PlayerList.svelte"
   import { getState } from "./store"
+  import { applyTheme } from "./theme"
 
   let state = $state({})
   let fullscreenState = false
@@ -13,6 +14,7 @@
 
   const incomingState = async (s) => {
     state = s
+    applyTheme(state.theme)
     const currentImage = state[state.currentCampaign].images.find(i => i.active)
     if (currentImage) {
       document.body.setAttribute("style", `--bg-image: url('${currentImage.fileUrl}')`)
