@@ -8,6 +8,7 @@
   import ImageList from "./components/ImageList.svelte"
   import { getState, saveStore, setState as setStoreState } from "./store"
   import { toTitleCase } from "./utils"
+  import { applyTheme, watchSystemTheme } from "./theme"
 
   const DEFAULT_HEALTH = 10
 
@@ -17,6 +18,7 @@
   let presenter
   let presenterVisible = $state(false)
   let appWindow
+  let stopSystemWatcher = null
 
   appWindow = WebviewWindow.getCurrent()
 
@@ -54,6 +56,10 @@
     state = await getState()
     if(state == null) state = {}
     let changed = false
+    if (state.theme == null) {
+      state.theme = "system"
+      changed = true
+    }
     if (state.dislaySize == null) {
       state.dislaySize = 1.0
       changed = true
@@ -68,6 +74,11 @@
       changed = true
     }
     if (changed) broadcastState()
+    applyTheme(state.theme)
+    stopSystemWatcher?.()
+    if (state.theme === "system") {
+      stopSystemWatcher = watchSystemTheme(() => applyTheme("system"))
+    }
   }
   const defaultCampaing = () => ({
     players: [
@@ -196,6 +207,16 @@
     })
     broadcastState()
   })
+  const cycleTheme = (_e) => {
+    const order = ["system", "light", "dark"]
+    const idx = order.indexOf(state.theme)
+    const next = order[(idx + 1) % order.length]
+    state = { ...state, theme: next }
+    applyTheme(state.theme)
+    stopSystemWatcher?.()
+    stopSystemWatcher = state.theme === "system" ? watchSystemTheme(() => applyTheme("system")) : null
+    broadcastState()
+  }
   const broadcastState = () => setStoreState(state)
   const imagesChange = (images) => {
     updateCampaign({
@@ -244,6 +265,15 @@ Campaign:&nbsp;
   <i class="fa-regular fa-square-plus"></i>&nbsp;Add Campaign
 </button>
 <br/>
+<button class="btn btn-primary" onclick={cycleTheme} title="Theme: {state.theme || 'system'}">
+  {#if state.theme === "light"}
+    <i class="fa-solid fa-sun"></i>
+  {:else if state.theme === "dark"}
+    <i class="fa-solid fa-moon"></i>
+  {:else}
+    <i class="fa-solid fa-circle-half-stroke"></i>
+  {/if}&nbsp;{toTitleCase(state.theme || 'system')}
+</button>
 <button class="btn btn-primary" onclick={openPresenter} disabled={presenterVisible}>
   <i class="fa-solid fa-arrow-up-right-from-square"></i>&nbsp;Open Presenter
 </button>
