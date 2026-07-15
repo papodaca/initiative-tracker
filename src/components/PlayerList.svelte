@@ -3,6 +3,10 @@
   import { quintOut } from "svelte/easing";
   import { crossfade } from "svelte/transition";
   import { flip } from "svelte/animate";
+  import InPlaceEdit from "./InPlaceEdit.svelte";
+
+  // PROPS
+  let { players = [], initiative = true, sortable = false, healthVisible = false, enemyHealthVisible = false, onupdate } = $props()
 
   // FLIP ANIMATION
   const [send, receive] = crossfade({
@@ -24,7 +28,7 @@
   });
 
   // DRAG AND DROP
-  let isOver = false;
+  let isOver = $state(false);
   const getDraggedParent = node =>
     node.dataset && node.dataset.index
       ? node.dataset
@@ -51,28 +55,21 @@
   };
   const updateField = (id, field) => {
     return (event) => {
-      dispatch("update", players);
+      onupdate?.(players);
     }
   }
   const deletePlayer = (id) => ((_event) => {
-    players = players.filter(p => p.id !== id)
-    dispatch("update", players)
+    const newList = players.filter(p => p.id !== id)
+    onupdate?.(newList)
   })
 
   // DISPATCH REORDER
-  import { createEventDispatcher } from "svelte";
-  import InPlaceEdit from "./InPlaceEdit.svelte";
-  const dispatch = createEventDispatcher();
   const reorder = ({ from, to }) => {
     let newList = [...players];
     newList[from] = [newList[to], (newList[to] = newList[from])][0];
 
-    dispatch("update", newList);
+    onupdate?.(newList);
   }
-
-  // PROPS
-  export let players = []
-  export let initiative = true, sortable = false, healthVisible = false, enemyHealthVisible = false
 </script>
 
 <style>
@@ -121,10 +118,10 @@
       class:active={player.active}
       data-index={index}
       data-id={player.id}
-      on:dragstart={start}
-      on:dragover={over}
-      on:dragleave={leave}
-      on:drop={drop}
+      ondragstart={start}
+      ondragover={over}
+      ondragleave={leave}
+      ondrop={drop}
       in:receive={{ key: player.id }}
       out:send={{ key: player.id }}
       animate:flip={{ duration: 300 }}
@@ -133,12 +130,12 @@
         {#if !initiative && sortable}
           <i class="fa-solid fa-grip-vertical"></i>&nbsp;
         {/if}
-        <span class="initiative"><InPlaceEdit bind:value={player.initiative} on:submit={updateField(player.id, 'initiative')} editable={!initiative && !sortable} /></span>
+        <span class="initiative"><InPlaceEdit bind:value={player.initiative} onsubmit={updateField(player.id, 'initiative')} editable={!initiative && !sortable} /></span>
         {#if (healthVisible && enemyHealthVisible) || (healthVisible && (player.kind == 'player' || player.kind == 'npc' )) }
         <span class="health">
-          HP:&nbsp;<InPlaceEdit bind:value={player.health} on:submit={updateField(player.id, 'health')} editable={!initiative && !sortable} />
+          HP:&nbsp;<InPlaceEdit bind:value={player.health} onsubmit={updateField(player.id, 'health')} editable={!initiative && !sortable} />
           &nbsp;/&nbsp;
-          <InPlaceEdit bind:value={player.maxHealth} on:submit={updateField(player.id, 'maxHealth')} editable={!initiative && !sortable} />
+          <InPlaceEdit bind:value={player.maxHealth} onsubmit={updateField(player.id, 'maxHealth')} editable={!initiative && !sortable} />
         </span>
         {:else if healthVisible && !enemyHealthVisible && player.kind == 'monster' }
           HP: ({player.maxHealth - player.health === 0 ? '' : '-'}{player.maxHealth - player.health})
@@ -149,20 +146,20 @@
         {:else if player.kind === 'npc'}
           <i class="fa-solid fa-user"></i>
         {:else if player.kind ==='monster'}
-          <i class="fa-solid fa-dragon"></i>  
+          <i class="fa-solid fa-dragon"></i>
         {/if}&nbsp;
-        <span class="name"><InPlaceEdit bind:value={player.name} on:submit={updateField(player.id, 'name')} editable={!initiative && !sortable} /></span>
+        <span class="name"><InPlaceEdit bind:value={player.name} onsubmit={updateField(player.id, 'name')} editable={!initiative && !sortable} /></span>
         {#if !initiative && !sortable}
         <div class="right">
-          <select bind:value={player.kind} on:change={updateField(player.id, 'kind')} >
+          <select bind:value={player.kind} onchange={updateField(player.id, 'kind')} >
             <option value="player">Player</option>
             <option value="npc">NPC</option>
             <option value="monster">Monster</option>
           </select>
           &nbsp;
           <i class="fa-solid fa-skull text-danger"></i>&nbsp;
-          <input type="checkbox" bind:checked={player.dead} on:change={updateField(player.id, 'dead')} />&nbsp;
-          <button class="btn btn-sm btn-outline-danger" on:click={deletePlayer(player.id)}><i class="fa-solid fa-square-xmark"></i></button>
+          <input type="checkbox" bind:checked={player.dead} onchange={updateField(player.id, 'dead')} />&nbsp;
+          <button class="btn btn-sm btn-outline-danger" aria-label="delete player" onclick={deletePlayer(player.id)}><i class="fa-solid fa-square-xmark"></i></button>
         </div>
         {/if}
       </div>

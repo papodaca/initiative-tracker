@@ -11,7 +11,12 @@
 
   const DEFAULT_HEALTH = 10
 
-  let state = {}, presenterFullscreen = false, newCampaignName, presenter, presenterVisible = false, appWindow
+  let state = $state({})
+  let presenterFullscreen = $state(false)
+  let newCampaignName = $state()
+  let presenter
+  let presenterVisible = $state(false)
+  let appWindow
 
   appWindow = WebviewWindow.getCurrent()
 
@@ -92,9 +97,9 @@
   const setSate = () => {
     updateCampaign(defaultCampaing())
   }
-  const playersChange = (e) => {
+  const playersChange = (players) => {
     updateCampaign({
-      players: e.detail
+      players
     }, false)
     sortList()
     broadcastState()
@@ -192,9 +197,9 @@
     broadcastState()
   })
   const broadcastState = () => setStoreState(state)
-  const imagesChange = (e) => {
+  const imagesChange = (images) => {
     updateCampaign({
-      images: e.detail
+      images
     })
   }
   const initiateRest = (kind) => (() => {
@@ -229,89 +234,89 @@
   }
 </style>
 Campaign:&nbsp;
-<select class="form-control" bind:value={state.currentCampaign} on:change={broadcastState}>
+<select class="form-control" bind:value={state.currentCampaign} onchange={broadcastState}>
   {#each state.campaigns || [] as campaign}
     <option value={campaign}>{toTitleCase(campaign)}</option>
   {/each}
 </select>
 <input placeholder="Name" type="text" class="form-control" bind:value={newCampaignName}/>
-<button class="btn btn-success" on:click={addCampaign} disabled={newCampaignName == null || newCampaignName.length < 1}>
+<button class="btn btn-success" onclick={addCampaign} disabled={newCampaignName == null || newCampaignName.length < 1}>
   <i class="fa-regular fa-square-plus"></i>&nbsp;Add Campaign
 </button>
 <br/>
-<button class="btn btn-primary" on:click={openPresenter} disabled={presenterVisible}>
+<button class="btn btn-primary" onclick={openPresenter} disabled={presenterVisible}>
   <i class="fa-solid fa-arrow-up-right-from-square"></i>&nbsp;Open Presenter
 </button>
-<button class="btn btn-primary" on:click={togglePresenterFullscreen} disabled={!presenterVisible}>
+<button class="btn btn-primary" onclick={togglePresenterFullscreen} disabled={!presenterVisible}>
   {#if presenterFullscreen}
     <i class="fa-solid fa-minimize"></i>&nbsp;Presenter
   {:else}
     <i class="fa-solid fa-expand"></i>&nbsp;Presenter
   {/if}
 </button>
-<button class="btn btn-danger" on:click={closePresenter} disabled={!presenterVisible}>
+<button class="btn btn-danger" onclick={closePresenter} disabled={!presenterVisible}>
   <i class="fa-solid fa-circle-xmark"></i>&nbsp;Presenter
 </button>
-<button class="btn btn-primary" on:click={setSate}>
+<button class="btn btn-primary" onclick={setSate}>
   <i class="fa-solid fa-rotate-right"></i>&nbsp;Set Default
 </button><br/>
-<button class="btn btn-success" on:click={addPlayer('player')}>
+<button class="btn btn-success" onclick={addPlayer('player')}>
   <i class="fa-regular fa-square-plus"></i>&nbsp;Add Player
 </button>
-<button class="btn btn-info" on:click={addPlayer('npc')}>
+<button class="btn btn-info" onclick={addPlayer('npc')}>
   <i class="fa-regular fa-square-plus"></i>&nbsp;Add NPC
 </button>
-<button class="btn btn-danger" on:click={addPlayer('monster')}>
+<button class="btn btn-danger" onclick={addPlayer('monster')}>
   <i class="fa-regular fa-square-plus"></i>&nbsp;Add Monster
 </button>
-<button class="btn btn-danger" on:click={clearMonsters}>
+<button class="btn btn-danger" onclick={clearMonsters}>
   <i class="fa-solid fa-square-xmark"></i>&nbsp;Clear Monsters
 </button><br/>
-<button class="btn btn-primary" on:click={startInitiative}>
+<button class="btn btn-primary" onclick={startInitiative}>
   <i class="fa-solid fa-play"></i>&nbsp;Start
 </button>
-<button class="btn btn-primary" on:click={nextPlayer}>
+<button class="btn btn-primary" onclick={nextPlayer}>
   <i class="fa-solid fa-arrow-down-long"></i>&nbsp;Next
 </button>
-<button class="btn btn-primary" on:click={previousPlayer}>
+<button class="btn btn-primary" onclick={previousPlayer}>
   <i class="fa-solid fa-arrow-up-long"></i>&nbsp;Previous
 </button>
-<button class="btn btn-primary" on:click={endInitiative}>
+<button class="btn btn-primary" onclick={endInitiative}>
   <i class="fa-solid fa-hand"></i>&nbsp;End
 </button><br/>
-<button class="btn btn-primary" on:click={toggle('initiativeVisible')}>
+<button class="btn btn-primary" onclick={toggle('initiativeVisible')}>
   {#if state[state.currentCampaign] && state[state.currentCampaign].initiativeVisible}
     <i class="fa-solid fa-eye-slash"></i>
   {:else}
     <i class="fa-solid fa-eye"></i>
   {/if}&nbsp;Initiative
 </button>
-<button class="btn btn-primary" on:click={toggle('healthVisible')}>
+<button class="btn btn-primary" onclick={toggle('healthVisible')}>
   {#if state[state.currentCampaign] && state[state.currentCampaign].healthVisible}
     <i class="fa-solid fa-eye-slash"></i>
   {:else}
     <i class="fa-solid fa-eye"></i>
   {/if}&nbsp;Enemy Health
 </button>
-<button class="btn btn-primary" on:click={toggle('enemyHealthVisible')}>
+<button class="btn btn-primary" onclick={toggle('enemyHealthVisible')}>
   {#if state[state.currentCampaign] && state[state.currentCampaign].enemyHealthVisible}
     <i class="fa-solid fa-eye-slash"></i>
   {:else}
     <i class="fa-solid fa-eye"></i>
   {/if}&nbsp;Player Health
 </button>
-<button class="btn btn-primary" on:click={initiateRest('long')}>
+<button class="btn btn-primary" onclick={initiateRest('long')}>
   <i class="fa-solid fa-bed"></i>&nbsp;Long Rest
 </button><br/>
-Dsiplay Size: <input type="range" min="1" max="5" step="0.1" bind:value={state.dislaySize} on:change={broadcastState} />&nbsp;{state.dislaySize}
+Dsiplay Size: <input type="range" min="1" max="5" step="0.1" bind:value={state.dislaySize} onchange={broadcastState} />&nbsp;{state.dislaySize}
 <div class="display">
   <PlayerList
     players={state[state.currentCampaign] && state[state.currentCampaign].players}
-    on:update={playersChange}
+    onupdate={playersChange}
     initiative={false}
     healthVisible={true}
     enemyHealthVisible={true} />
 </div>
 <ImageList
   images={state[state.currentCampaign] && state[state.currentCampaign].images}
-  on:update={imagesChange} />
+  onupdate={imagesChange} />

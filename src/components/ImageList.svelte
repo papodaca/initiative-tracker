@@ -1,15 +1,13 @@
 <script>
-  import { createEventDispatcher } from "svelte"
   import { convertFileSrc } from '@tauri-apps/api/core'
   import { open } from '@tauri-apps/plugin-dialog'
   import { splitWords as w } from '../utils'
   import InPlaceEdit from "./InPlaceEdit.svelte"
-  const dispatch = createEventDispatcher();
 
-  export let images = []
+  let { images = [], onupdate } = $props()
 
   const updateField = (index, field) => ((_e) => {
-    dispatch("update", images);
+    onupdate?.(images);
   })
 
   const openFiles = () => (open({
@@ -25,21 +23,21 @@
     let files = await openFiles()
     if (files == null) return
 
+    const newImages = [...images]
     for (let filePath of files) {
       let name = filePath.split("/").pop().replace(/\.[^.]+$/, "")
-      images.push({
+      newImages.push({
         id: crypto.randomUUID(),
         name,
         fileUrl: convertFileSrc(filePath),
         active: false
       })
     }
-    dispatch("update", images);
+    onupdate?.(newImages);
   }
   const makeActive = (index) => ((_e) => {
-    images.forEach(i => i.active = false)
-    images[index].active = true
-    dispatch("update", images);
+    const newImages = images.map((i, idx) => ({ ...i, active: idx === index }))
+    onupdate?.(newImages);
   })
   const keydown = (_e) => {}
 </script>
@@ -69,11 +67,11 @@
     <div
       class="list-group-item"
       class:active={image.active}>
-      <div class="image" style="--bg-image: url({image.fileUrl})" on:click={makeActive(index)} role="button" aria-label="make {image.name} active" tabindex={index} on:keydown={keydown}/>
-      <div class="name"><InPlaceEdit bind:value={image.name} on:submit={updateField(index, 'name')} editable={true} /></div>
+      <div class="image" style="--bg-image: url({image.fileUrl})" onclick={makeActive(index)} role="button" aria-label="make {image.name} active" tabindex={index} onkeydown={keydown}></div>
+      <div class="name"><InPlaceEdit bind:value={image.name} onsubmit={updateField(index, 'name')} editable={true} /></div>
     </div>
   {/each}
 </div>
-<button class="btn btn-success" on:click={openImages}>
+<button class="btn btn-success" onclick={openImages}>
   <i class="fa-regular fa-square-plus"></i>&nbsp;Add Images
 </button>

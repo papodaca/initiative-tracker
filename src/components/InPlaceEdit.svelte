@@ -1,11 +1,10 @@
 <script>
   //based on https://svelte.dev/repl/29c1026dda3c47a187bd21afa0782df1?version=3.31.2
-  import { createEventDispatcher, onMount } from 'svelte'
+  import { onMount } from 'svelte'
 
-  export let value, required = true, editable = false
+  let { value = $bindable(), required = true, editable = false, onsubmit } = $props()
 
-  const dispatch = createEventDispatcher()
-  let editing = false, original, width
+  let editing = $state(false), original, width = $state(0)
 
   onMount(() => {
     original = value
@@ -20,9 +19,9 @@
   function submit() {
 		if (value != original) {
       original = value
-			dispatch('submit', value)
+			onsubmit?.(value)
 		}
-		
+
     editing = false
   }
 
@@ -33,18 +32,18 @@
       editing = false
     }
   }
-	
+
 	function focus(element) {
 		element.focus()
 	}
 </script>
 
 {#if editable && editing}
-  <form on:submit|preventDefault={submit}>
-    <input bind:value on:blur={submit} {required} use:focus style="max-width: {width}px"/>
+  <form onsubmit={(e) => { e.preventDefault(); submit() }}>
+    <input bind:value onblur={submit} {required} use:focus style="max-width: {width}px"/>
   </form>
 {:else}
-  <span on:click={edit} on:keydown={keydown} role="button" aria-label="edit" tabindex="-1">
+  <span onclick={edit} onkeydown={keydown} role="button" aria-label="edit" tabindex="-1">
     {value}
   </span>
 {/if}

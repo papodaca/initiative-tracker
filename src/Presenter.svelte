@@ -7,7 +7,9 @@
   import PlayerList from "./components/PlayerList.svelte"
   import { getState } from "./store"
 
-  let state = {}, fullscreenState = false, presenter = WebviewWindow.getCurrent()
+  let state = $state({})
+  let fullscreenState = false
+  let presenter = WebviewWindow.getCurrent()
 
   const incomingState = async (s) => {
     state = s
@@ -36,7 +38,7 @@
   }
 </script>
 
-<svelte:window on:keyup={onKeyUp} />
+<svelte:window onkeyup={onKeyUp} />
 
 {#if state[state.currentCampaign] && state[state.currentCampaign].players && state[state.currentCampaign].initiativeVisible}
   <div style="font-size: {state.dislaySize.toString()}em">
