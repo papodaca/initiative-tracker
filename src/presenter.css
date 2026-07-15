@@ -1,15 +1,30 @@
 body {
   margin: 0;
   padding: 0;
-  background-size: cover;
-  background-repeat: no-repeat;
-  background-image: var(--bg-image);
-  /* background-position: center; */
-}
-body.presenter {
-  transition: all 0.5s ease-in;
 }
 #app {
   max-width: fit-content;
   margin: 5px;
+}
+
+.presenter-bg-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -10;
+  overflow: hidden;
+}
+
+.presenter-bg-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: center;
+  transition: opacity 0.5s ease-in-out;
 }

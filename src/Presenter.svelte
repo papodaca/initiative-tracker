@@ -22,12 +22,51 @@
   // Show Initiative Roll toggles the roll number on the Presenter.
   let showInitiativeRoll = $derived(campaign ? campaign.showInitiativeRoll !== false : true)
 
+  // Background transition state
+  let bg1 = $state("")
+  let bg2 = $state("")
+  let activeLayer = $state(1)
+  let lastUrl = ""
+
+  const preloadAndTransition = (url) => {
+    if (url === lastUrl) return
+    lastUrl = url
+
+    const img = new Image()
+    img.src = url
+    img.onload = () => {
+      if (lastUrl !== url) return
+      if (activeLayer === 1) {
+        bg2 = url
+        activeLayer = 2
+      } else {
+        bg1 = url
+        activeLayer = 1
+      }
+    }
+    img.onerror = () => {
+      if (lastUrl !== url) return
+      if (activeLayer === 1) {
+        bg2 = url
+        activeLayer = 2
+      } else {
+        bg1 = url
+        activeLayer = 1
+      }
+    }
+  }
+
   const incomingState = async (s) => {
     state = s
     applyTheme(state.theme)
-    const currentImage = state[state.currentCampaign].images.find(i => i.active)
+    const currentCampaign = state[state.currentCampaign]
+    const currentImage = currentCampaign && currentCampaign.images ? currentCampaign.images.find(i => i.active) : null
     if (currentImage) {
-      document.body.setAttribute("style", `--bg-image: url('${currentImage.fileUrl}')`)
+      preloadAndTransition(currentImage.fileUrl)
+    } else {
+      lastUrl = ""
+      bg1 = ""
+      bg2 = ""
     }
   }
   const setFullscreen = async (fullscreen) => {
@@ -51,6 +90,11 @@
 </script>
 
 <svelte:window onkeyup={onKeyUp} />
+
+<div class="presenter-bg-container">
+  <div class="presenter-bg-layer" style="background-image: {bg1 ? `url('${bg1}')` : 'none'}; opacity: {activeLayer === 1 ? 1 : 0}"></div>
+  <div class="presenter-bg-layer" style="background-image: {bg2 ? `url('${bg2}')` : 'none'}; opacity: {activeLayer === 2 ? 1 : 0}"></div>
+</div>
 
 {#if campaign && campaign.players && campaign.initiativeVisible}
   <div style="font-size: {state.dislaySize.toString()}em">
