@@ -1,15 +1,28 @@
-import { Store } from "@tauri-apps/plugin-store"
+import { LazyStore } from "@tauri-apps/plugin-store"
 import { emit } from "@tauri-apps/api/event"
 
-const store = new Store(".settings.dat");
+let store = null
 
-export let getState = () => store.get("state")
-
-export let setState = async (state) => {
-    await store.set("state", state)
-    emit('state-change', state)
+let makeStore = async () => {
+  if (store === null) {
+    store = await new LazyStore(".settings.dat")
+  }
 }
 
-export let saveStore = () => store.save()
+export let getState = async () => {
+  await makeStore()
+  return store.get("state")
+}
+
+export let setState = async (state) => {
+  await makeStore()
+  await store.set("state", state)
+  emit('state-change', state)
+}
+
+export let saveStore = async () => {
+  await makeStore()
+  store.save()
+}
 
 export default store

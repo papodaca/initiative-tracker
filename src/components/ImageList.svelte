@@ -2,6 +2,7 @@
   import { createEventDispatcher } from "svelte"
   import { convertFileSrc } from '@tauri-apps/api/core'
   import { open } from '@tauri-apps/plugin-dialog'
+  import { splitWords as w } from '../utils'
   import InPlaceEdit from "./InPlaceEdit.svelte"
   const dispatch = createEventDispatcher();
 
@@ -16,21 +17,20 @@
     directory: false,
     filters: [{
       name: "Image",
-      extensions: ["png", "jpeg", "jpg", "webp", "bmp", "tiff", "gif"]
+      extensions: w`avif ico jfif svg png jpeg jpg webp bmp gif`
     }]
   }))
 
   const openImages = async () => {
-    let files = await openFiles() 
+    let files = await openFiles()
     if (files == null) return
 
-    for(let file of files) {
-      let filenameExt = file.name.split(".")
-      let name = filenameExt.slice(0, filenameExt.length - 1).join(".")
+    for (let filePath of files) {
+      let name = filePath.split("/").pop().replace(/\.[^.]+$/, "")
       images.push({
         id: crypto.randomUUID(),
         name,
-        fileUrl: convertFileSrc(file.path),
+        fileUrl: convertFileSrc(filePath),
         active: false
       })
     }

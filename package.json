@@ -10,16 +10,16 @@
     "tauri": "tauri"
   },
   "dependencies": {
-    "@fortawesome/fontawesome-free": "^6.5.2",
+    "@fortawesome/fontawesome-free": "^6.7.2",
     "@popperjs/core": "^2.11.8",
-    "@tauri-apps/api": "^2.0.0-beta.7",
-    "@tauri-apps/plugin-dialog": "^2.0.0-beta.2",
-    "@tauri-apps/plugin-store": "^2.0.0-beta.2",
+    "@tauri-apps/api": "^2.0.3",
+    "@tauri-apps/plugin-dialog": "^2.0.2",
+    "@tauri-apps/plugin-store": "^2.0.0",
     "bootstrap": "^5.3.2"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^3.0.2",
-    "@tauri-apps/cli": "2.0.0-beta.4",
+    "@tauri-apps/cli": "2.0",
     "svelte": "^4.2.11",
     "vite": "^5.2.8"
   }

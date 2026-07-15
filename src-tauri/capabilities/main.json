@@ -7,21 +7,13 @@
     "presenter"
   ],
   "permissions": [
-    "path:default",
-    "event:default",
-    "window:default",
-    "app:default",
-    "resources:default",
-    "menu:default",
-    "tray:default",
-    "store:allow-get",
-    "store:allow-set",
-    "store:allow-save",
-    "window:allow-show",
-    "window:allow-hide",
-    "window:allow-set-fullscreen",
-    "window:allow-destroy",
-    "dialog:allow-open"
+    "core:default",
+    "store:default",
+    "dialog:default",
+    "core:window:allow-show",
+    "core:window:allow-hide",
+    "core:window:allow-set-fullscreen",
+    "core:window:allow-destroy"
   ],
   "platforms": [
     "linux",

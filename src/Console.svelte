@@ -1,20 +1,19 @@
 <script>
   import { onMount } from "svelte"
 
-  import { WebviewWindow, getCurrent } from "@tauri-apps/api/webviewWindow"
+  import { WebviewWindow } from "@tauri-apps/api/webviewWindow"
   import { listen } from '@tauri-apps/api/event'
 
   import PlayerList from "./components/PlayerList.svelte"
   import ImageList from "./components/ImageList.svelte"
-  import { getState, setState as setStoreState, saveStore } from "./store"
+  import { getState, saveStore, setState as setStoreState } from "./store"
   import { toTitleCase } from "./utils"
 
-  const DEFAULT_HEALTH = 10 
+  const DEFAULT_HEALTH = 10
 
   let state = {}, presenterFullscreen = false, newCampaignName, presenter, presenterVisible = false, appWindow
 
-  appWindow = getCurrent()
-  presenter = WebviewWindow.getByLabel("presenter")
+  appWindow = WebviewWindow.getCurrent()
 
   const openPresenter = async () => {
     if (presenter == null) return
@@ -44,7 +43,7 @@
   })
 
   const loadState = async () => {
-    presenter = WebviewWindow.getByLabel("presenter");
+    presenter = await WebviewWindow.getByLabel("presenter");
     presenterVisible = await presenter.isVisible()
     presenter.onCloseRequested(closePresenter)
     state = await getState()
@@ -53,7 +52,7 @@
     if (state.dislaySize == null) {
       state.dislaySize = 1.0
       changed = true
-    } 
+    }
     if (state.currentCampaign == null) {
       state.currentCampaign = "default"
       state.campaigns = [state.currentCampaign]
@@ -95,14 +94,14 @@
   }
   const playersChange = (e) => {
     updateCampaign({
-      players: e.detail 
+      players: e.detail
     }, false)
     sortList()
     broadcastState()
   }
   const sortList = () => {
     updateCampaign({
-      players: state[state.currentCampaign].players.sort((a, b) => Number(b.initiative) - Number(a.initiative)) 
+      players: state[state.currentCampaign].players.sort((a, b) => Number(b.initiative) - Number(a.initiative))
     })
   }
 
@@ -159,7 +158,7 @@
     }
     updatePlayerActive()
     broadcastState()
-    
+
   }
   const previousPlayer = (_e) => {
     state[state.currentCampaign].currentPlayer -= 1
