@@ -45,8 +45,6 @@
 <style>
   .list-group {
     max-width: 600px;
-    max-height: 1000px;
-    overflow: scroll;
   }
   .list-group-item .image {
     display: inline-block;

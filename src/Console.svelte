@@ -298,11 +298,15 @@
 
   .content-scroll {
     flex: 1;
+    min-height: 0;
     overflow-y: auto;
     padding: 12px;
     display: flex;
     flex-direction: column;
     gap: 12px;
+  }
+  .content-scroll > :global(*) {
+    flex-shrink: 0;
   }
 
   details {
