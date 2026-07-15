@@ -4,24 +4,49 @@
    so the toggle can override prefers-color-scheme. */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
+/* Mockup palette as Tailwind v4 @theme tokens. Brand colors are constant across
+   themes; neutral tokens (base/surface/elevated/content/muted/edge) default to the
+   derived LIGHT set on :root (preserving the original pre-JS light default), and
+   are overridden to the mockup's near-black DARK set under [data-theme="dark"]. */
+@theme {
+  --color-primary: #4ea8de;
+  --color-success: #04d361;
+  --color-danger: #f75a68;
+
+  --color-base: #f6f6f8;
+  --color-surface: #ffffff;
+  --color-elevated: #ececef;
+  --color-content: #1a1a1e;
+  --color-muted: #6b6b75;
+  --color-edge: #e0e0e4;
+}
+
+:root[data-theme="dark"] {
+  --color-base: #121214;
+  --color-surface: #1a1a1e;
+  --color-elevated: #26262b;
+  --color-content: #e1e1e6;
+  --color-muted: #a8a8b3;
+  --color-edge: #29292e;
+}
+
 @layer base {
   :root { color-scheme: light; }
   :root[data-theme="dark"] { color-scheme: dark; }
   body {
-    @apply bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-100;
+    @apply bg-base text-content;
     margin: 0;
   }
 }
 
 @layer components {
   .form-control {
-    @apply rounded border border-slate-300 bg-white px-2 py-1 text-sm text-slate-900 outline-none
-           dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100;
+    @apply rounded border border-edge bg-elevated px-2 py-1 text-sm text-content outline-none;
   }
 
   .btn {
     @apply inline-flex items-center rounded px-3 py-1.5 text-sm font-medium cursor-pointer
-           border border-transparent;
+           border border-edge bg-elevated text-content;
   }
   .btn:disabled,
   .btn[disabled] {
@@ -29,19 +54,19 @@
   }
 
   .btn-primary {
-    @apply bg-blue-600 text-white hover:bg-blue-500;
+    @apply bg-primary text-black font-semibold border-transparent hover:bg-primary/90;
   }
   .btn-success {
-    @apply bg-green-600 text-white hover:bg-green-500;
+    @apply bg-success text-black font-semibold border-transparent hover:bg-success/90;
   }
   .btn-danger {
-    @apply bg-red-600 text-white hover:bg-red-500;
+    @apply bg-danger text-white border-transparent hover:bg-danger/90;
   }
   .btn-info {
-    @apply bg-cyan-500 text-slate-900 hover:bg-cyan-400;
+    @apply bg-elevated text-content border border-edge hover:bg-surface;
   }
   .btn-outline-danger {
-    @apply border border-red-600 text-red-600 bg-transparent hover:bg-red-600 hover:text-white;
+    @apply border border-danger text-danger bg-transparent hover:bg-danger hover:text-white;
   }
   .btn-sm {
     @apply px-2 py-1 text-xs;
@@ -51,17 +76,16 @@
     @apply flex flex-col gap-1;
   }
   .list-group-item {
-    @apply rounded border border-slate-200 bg-white px-3 py-2 text-slate-900
-           dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100;
+    @apply rounded border border-edge bg-surface px-3 py-2 text-content;
   }
   .list-group-item-action {
-    @apply cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700;
+    @apply cursor-pointer hover:bg-elevated;
   }
   .list-group-item.active {
-    @apply bg-blue-600 text-white border-blue-600 hover:bg-blue-600 dark:hover:bg-blue-600;
+    @apply border-primary bg-primary/10;
   }
 
   .text-danger {
-    @apply text-red-600 dark:text-red-400;
+    @apply text-danger;
   }
 }

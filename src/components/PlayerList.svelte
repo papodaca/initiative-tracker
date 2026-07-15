@@ -6,7 +6,7 @@
   import InPlaceEdit from "./InPlaceEdit.svelte";
 
   // PROPS
-  let { players = [], initiative = true, sortable = false, healthVisible = false, enemyHealthVisible = false, onupdate } = $props()
+  let { players = [], initiative = true, sortable = false, healthVisible = false, enemyHealthVisible = false, showInitiativeRoll = true, onupdate } = $props()
 
   // FLIP ANIMATION
   const [send, receive] = crossfade({
@@ -53,8 +53,16 @@
     let to = dragged.index;
     reorder({ from, to });
   };
+
+  // Dead is derived from HP: a combatant is dead when health <= 0, revives on HP > 0.
+  const deriveDead = (player) => { player.dead = Number(player.health) <= 0 }
+
   const updateField = (id, field) => {
     return (event) => {
+      if (field === 'health' || field === 'maxHealth') {
+        const player = players.find(p => p.id === id)
+        if (player) deriveDead(player)
+      }
       onupdate?.(players);
     }
   }
@@ -62,6 +70,9 @@
     const newList = players.filter(p => p.id !== id)
     onupdate?.(newList)
   })
+
+  const KIND_LABEL = { player: 'PC', npc: 'NPC', monster: 'Monster' }
+  const kindLabel = (kind) => KIND_LABEL[kind] || (kind ? kind[0].toUpperCase() + kind.slice(1) : '')
 
   // DISPATCH REORDER
   const reorder = ({ from, to }) => {
@@ -73,42 +84,58 @@
 </script>
 
 <style>
-  .list-group-item {
-    transition: border 0.2s linear;
+  .entity-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.625em 0.75em;
+    border-radius: 8px;
+    border: 1px solid var(--color-edge);
+    background-color: var(--color-surface);
+    transition: border 0.2s linear, opacity 0.3s;
   }
-  .over {
-    opacity: 0.8;
+  .entity-row.over { opacity: 0.8; }
+  .entity-row.active {
+    border-color: var(--color-primary);
+    background-color: color-mix(in oklab, var(--color-primary) 10%, var(--color-surface));
   }
-  .list-group.initiative-list .list-group-item {
-    opacity: 0.8;
-    transition: opacity 0.3s;
+  .entity-row.dead .name { text-decoration: line-through; }
+
+  /* Presenter (initiative) list keeps its existing dimmed look. */
+  .list-group.initiative-list .entity-row { opacity: 0.8; }
+
+  .entity-main { display: flex; align-items: center; gap: 0.625em; min-width: 0; }
+  .drag-handle { color: var(--color-muted); cursor: grab; flex: 0 0 auto; }
+
+  .init-badge {
+    background-color: var(--color-elevated);
+    min-width: 1.875em;
+    height: 1.875em;
+    padding: 0 0.4em;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    font-weight: bold;
+    flex: 0 0 auto;
   }
-  .list-group.initiative-list .list-group-item div.text.dead .name {
-    text-decoration: line-through;
+  .entity-row.active .init-badge {
+    background-color: var(--color-primary);
+    color: #000;
   }
 
-  .list-group.initiative-list .list-group-item div.text {
-    opacity: 0.9;
-    background-color: #f8fafc;
-  }
-  :global([data-theme="dark"]) .list-group.initiative-list .list-group-item div.text {
-    background-color: #1e293b;
-  }
-  .list-group.initiative-list .list-group-item.active div.text {
-    opacity: 0.9;
-    background-color: #2563eb;
-  }
+  .entity-info { min-width: 0; }
+  .entity-info .name { font-weight: 600; font-size: 0.875em; }
+  .entity-info .meta { font-size: 0.6875em; color: var(--color-muted); }
 
-  .list-group .list-group-item div.text .initiative {
-    width: 1.5em;
-    display: inline-block;
-  }
-  .list-group .list-group-item div.text .name {
-    margin-left: 0.5em;
-    margin-right: 0.5em;
-  }
-  .text .right {
-    float: right;
+  .entity-actions { display: flex; align-items: center; gap: 0.5em; flex: 0 0 auto; }
+  .hp-badge {
+    background: var(--color-edge);
+    padding: 0.25em 0.5em;
+    border-radius: 12px;
+    font-size: 0.6875em;
+    font-family: monospace;
+    white-space: nowrap;
   }
 </style>
 
@@ -117,8 +144,10 @@
     <div
       draggable={!initiative && sortable}
       role="note"
-      class="list-group-item list-group-item-action"
+      class="entity-row list-group-item list-group-item-action"
       class:active={player.active}
+      class:dead={player.dead}
+      class:over={player.id === isOver}
       data-index={index}
       data-id={player.id}
       ondragstart={start}
@@ -127,43 +156,36 @@
       ondrop={drop}
       in:receive={{ key: player.id }}
       out:send={{ key: player.id }}
-      animate:flip={{ duration: 300 }}
-      class:over={player.id === isOver}>
-      <div class="text" class:text-danger={player.dead} class:dead={player.dead}>
+      animate:flip={{ duration: 300 }}>
+      <div class="entity-main">
         {#if !initiative && sortable}
-          <i class="fa-solid fa-grip-vertical"></i>&nbsp;
+          <i class="fa-solid fa-grip-vertical drag-handle"></i>
         {/if}
-        <span class="initiative"><InPlaceEdit bind:value={player.initiative} onsubmit={updateField(player.id, 'initiative')} editable={!initiative && !sortable} /></span>
-        {#if (healthVisible && enemyHealthVisible) || (healthVisible && (player.kind == 'player' || player.kind == 'npc' )) }
-        <span class="health">
-          HP:&nbsp;<InPlaceEdit bind:value={player.health} onsubmit={updateField(player.id, 'health')} editable={!initiative && !sortable} />
-          &nbsp;/&nbsp;
-          <InPlaceEdit bind:value={player.maxHealth} onsubmit={updateField(player.id, 'maxHealth')} editable={!initiative && !sortable} />
-        </span>
-        {:else if healthVisible && !enemyHealthVisible && player.kind == 'monster' }
-          HP: ({player.maxHealth - player.health === 0 ? '' : '-'}{player.maxHealth - player.health})
+        {#if showInitiativeRoll}
+          <div class="init-badge">
+            <InPlaceEdit bind:value={player.initiative} onsubmit={updateField(player.id, 'initiative')} editable={!initiative && !sortable} />
+          </div>
         {/if}
-        &nbsp;-&nbsp;
-        {#if player.kind === 'player'}
-          <i class="fa-solid fa-person-hiking"></i>
-        {:else if player.kind === 'npc'}
-          <i class="fa-solid fa-user"></i>
-        {:else if player.kind ==='monster'}
-          <i class="fa-solid fa-dragon"></i>
-        {/if}&nbsp;
-        <span class="name"><InPlaceEdit bind:value={player.name} onsubmit={updateField(player.id, 'name')} editable={!initiative && !sortable} /></span>
-        {#if !initiative && !sortable}
-        <div class="right">
-          <select bind:value={player.kind} onchange={updateField(player.id, 'kind')} >
-            <option value="player">Player</option>
-            <option value="npc">NPC</option>
-            <option value="monster">Monster</option>
-          </select>
-          &nbsp;
-          <i class="fa-solid fa-skull text-danger"></i>&nbsp;
-          <input type="checkbox" bind:checked={player.dead} onchange={updateField(player.id, 'dead')} />&nbsp;
-          <button class="btn btn-sm btn-outline-danger" aria-label="delete player" onclick={deletePlayer(player.id)}><i class="fa-solid fa-square-xmark"></i></button>
+        <div class="entity-info">
+          <div class="name">
+            <InPlaceEdit bind:value={player.name} onsubmit={updateField(player.id, 'name')} editable={!initiative && !sortable} />
+          </div>
+          <div class="meta">{kindLabel(player.kind)}{#if player.dead} • Dead{/if}</div>
         </div>
+      </div>
+      <div class="entity-actions">
+        {#if (healthVisible && enemyHealthVisible) || (healthVisible && (player.kind == 'player' || player.kind == 'npc' )) }
+          <span class="hp-badge">
+            <InPlaceEdit bind:value={player.health} onsubmit={updateField(player.id, 'health')} editable={!initiative && !sortable} />
+            /&nbsp;<InPlaceEdit bind:value={player.maxHealth} onsubmit={updateField(player.id, 'maxHealth')} editable={!initiative && !sortable} />
+          </span>
+        {:else if healthVisible && !enemyHealthVisible && player.kind == 'monster' }
+          <span class="hp-badge">{player.maxHealth - player.health === 0 ? '' : '-'}{player.maxHealth - player.health}</span>
+        {/if}
+        {#if !initiative && !sortable}
+          <button class="btn btn-sm btn-outline-danger" aria-label="delete player" onclick={deletePlayer(player.id)}>
+            <i class="fa-solid fa-square-xmark"></i>
+          </button>
         {/if}
       </div>
     </div>

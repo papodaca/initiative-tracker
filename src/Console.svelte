@@ -6,6 +6,8 @@
 
   import PlayerList from "./components/PlayerList.svelte"
   import ImageList from "./components/ImageList.svelte"
+  import SettingsOverlay from "./components/SettingsOverlay.svelte"
+  import AddCampaignDialog from "./components/AddCampaignDialog.svelte"
   import { getState, saveStore, setState as setStoreState } from "./store"
   import { toTitleCase } from "./utils"
   import { applyTheme, watchSystemTheme } from "./theme"
@@ -14,11 +16,17 @@
 
   let state = $state({})
   let presenterFullscreen = $state(false)
-  let newCampaignName = $state()
+  let settingsOpen = $state(false)
+  let addCampaignOpen = $state(false)
   let presenter
   let presenterVisible = $state(false)
   let appWindow
   let stopSystemWatcher = null
+
+  // Add-combatant drawer form fields.
+  let newName = $state('')
+  let newInitiative = $state('')
+  let newMaxHealth = $state('')
 
   appWindow = WebviewWindow.getCurrent()
 
@@ -49,6 +57,16 @@
     appWindow.destroy()
   })
 
+  // Dead is derived from HP (health <= 0), not authored. Used to normalize
+  // legacy saved state on load and to keep it consistent on player changes.
+  const deriveDead = (player) => {
+    const dead = Number(player.health) <= 0
+    const changed = !!player.dead !== dead
+    player.dead = dead
+    return changed
+  }
+  const normalizeDead = (players) => (players || []).some(deriveDead)
+
   const loadState = async () => {
     presenter = await WebviewWindow.getByLabel("presenter");
     presenterVisible = await presenter.isVisible()
@@ -73,6 +91,12 @@
       state[state.currentCampaign] = defaultCampaing()
       changed = true
     }
+    ;(state.campaigns || []).forEach(c => {
+      if (state[c] == null) return
+      if (state[c].showInitiativeRoll == null) { state[c].showInitiativeRoll = true; changed = true }
+      if (state[c].autoHideInactive == null) { state[c].autoHideInactive = false; changed = true }
+    })
+    if ((state.campaigns || []).some(c => normalizeDead(state[c] && state[c].players))) changed = true
     if (changed) broadcastState()
     applyTheme(state.theme)
     stopSystemWatcher?.()
@@ -102,13 +126,13 @@
         initiative: 1
       }
     ],
-    images: []
+    images: [],
+    showInitiativeRoll: true,
+    autoHideInactive: false
   })
   onMount(() => loadState())
-  const setSate = () => {
-    updateCampaign(defaultCampaing())
-  }
   const playersChange = (players) => {
+    normalizeDead(players)
     updateCampaign({
       players
     }, false)
@@ -121,29 +145,36 @@
     })
   }
 
-  const addCampaign = (_el) => {
+  const addCampaign = (name) => {
+    if (!name || !name.trim() || (state.campaigns || []).includes(name)) return
     state = {
       ...state,
-      campaigns: [...state.campaigns, newCampaignName],
-      [newCampaignName]: defaultCampaing()
+      campaigns: [...(state.campaigns || []), name],
+      [name]: defaultCampaing()
     }
-    newCampaignName = undefined
+    addCampaignOpen = false
     broadcastState()
   }
-  const addPlayer = (kind) =>((_e) => {
+  const openAddCampaign = () => { addCampaignOpen = true }
+  const closeAddCampaign = () => { addCampaignOpen = false }
+
+  const addCombatant = (kind) => (() => {
+    const maxHealth = Number(newMaxHealth) || DEFAULT_HEALTH
+    const player = {
+      id: crypto.randomUUID(),
+      name: (newName || '').trim() || `New ${toTitleCase(kind)}`,
+      initiative: Number(newInitiative) || 0,
+      health: maxHealth,
+      maxHealth,
+      kind,
+      dead: maxHealth <= 0
+    }
     updateCampaign({
-      players: [
-        ...state[state.currentCampaign].players,
-        {
-          id: crypto.randomUUID(),
-          name: `New ${toTitleCase(kind)}`,
-          initiative: 0,
-          health: DEFAULT_HEALTH,
-          maxHealth: DEFAULT_HEALTH,
-          kind
-        }
-      ]
-    }, false)
+      players: [...(state[state.currentCampaign].players || []), player]
+    })
+    newName = ''
+    newInitiative = ''
+    newMaxHealth = ''
   })
   const clearMonsters = (_e) => {
     updateCampaign({
@@ -207,16 +238,27 @@
     })
     broadcastState()
   })
-  const cycleTheme = (_e) => {
-    const order = ["system", "light", "dark"]
-    const idx = order.indexOf(state.theme)
-    const next = order[(idx + 1) % order.length]
-    state = { ...state, theme: next }
+
+  const openSettings = () => { settingsOpen = true }
+  const closeSettings = () => { settingsOpen = false }
+  const saveSettings = ({ name }) => {
+    // Rename current campaign (rekey) when the name changed to a unique value.
+    if (name && name !== state.currentCampaign &&
+        (state.campaigns || []).includes(state.currentCampaign) &&
+        !(state.campaigns || []).includes(name)) {
+      const oldName = state.currentCampaign
+      const campaign = state[oldName]
+      const campaigns = (state.campaigns || []).map(c => c === oldName ? name : c)
+      const { [oldName]: _removed, ...rest } = state
+      state = { ...rest, campaigns, currentCampaign: name, [name]: campaign }
+    }
+    broadcastState()
     applyTheme(state.theme)
     stopSystemWatcher?.()
     stopSystemWatcher = state.theme === "system" ? watchSystemTheme(() => applyTheme("system")) : null
-    broadcastState()
+    settingsOpen = false
   }
+
   const broadcastState = () => setStoreState(state)
   const imagesChange = (images) => {
     updateCampaign({
@@ -234,119 +276,196 @@
     }
   })
 </script>
+
 <style>
-  .display {
-    max-width: fit-content;
+  .console {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
   }
-  select.form-control {
-    max-width: fit-content;
-    display: inline-block;
+  header {
+    background-color: var(--color-surface);
+    border-bottom: 1px solid var(--color-edge);
+    padding: 12px 16px;
   }
-  input.form-control {
-    max-width: 150px;
-    display: inline-block;
+  .header-top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
-  button.btn {
-    margin-bottom: 5px;
+  .header-top .campaign-select { flex: 1; min-width: 0; }
+
+  .content-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
   }
-  button.btn[disabled],
-  button.btn:disabled {
-    cursor: not-allowed;
+
+  details {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-edge);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  summary {
+    padding: 12px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--color-muted);
+    cursor: pointer;
+    font-weight: 600;
+    user-select: none;
+  }
+  details[open] summary { border-bottom: 1px solid var(--color-edge); }
+  .drawer-content {
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .presenter-row { display: flex; gap: 8px; }
+
+  .visibility-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 6px;
+  }
+
+  .quick-add-form { display: flex; flex-direction: column; gap: 8px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .btn-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+
+  .combat-sticky-footer {
+    background-color: var(--color-surface);
+    border-top: 1px solid var(--color-edge);
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .main-loop-buttons { display: flex; gap: 8px; }
+  .btn-xl { flex: 2; padding: 14px; font-size: 15px; font-weight: bold; }
+  .secondary-buttons {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
   }
 </style>
-Campaign:&nbsp;
-<select class="form-control" bind:value={state.currentCampaign} onchange={broadcastState}>
-  {#each state.campaigns || [] as campaign}
-    <option value={campaign}>{toTitleCase(campaign)}</option>
-  {/each}
-</select>
-<input placeholder="Name" type="text" class="form-control" bind:value={newCampaignName}/>
-<button class="btn btn-success" onclick={addCampaign} disabled={newCampaignName == null || newCampaignName.length < 1}>
-  <i class="fa-regular fa-square-plus"></i>&nbsp;Add Campaign
-</button>
-<br/>
-<button class="btn btn-primary" onclick={cycleTheme} title="Theme: {state.theme || 'system'}">
-  {#if state.theme === "light"}
-    <i class="fa-solid fa-sun"></i>
-  {:else if state.theme === "dark"}
-    <i class="fa-solid fa-moon"></i>
-  {:else}
-    <i class="fa-solid fa-circle-half-stroke"></i>
-  {/if}&nbsp;{toTitleCase(state.theme || 'system')}
-</button>
-<button class="btn btn-primary" onclick={openPresenter} disabled={presenterVisible}>
-  <i class="fa-solid fa-arrow-up-right-from-square"></i>&nbsp;Open Presenter
-</button>
-<button class="btn btn-primary" onclick={togglePresenterFullscreen} disabled={!presenterVisible}>
-  {#if presenterFullscreen}
-    <i class="fa-solid fa-minimize"></i>&nbsp;Presenter
-  {:else}
-    <i class="fa-solid fa-expand"></i>&nbsp;Presenter
-  {/if}
-</button>
-<button class="btn btn-danger" onclick={closePresenter} disabled={!presenterVisible}>
-  <i class="fa-solid fa-circle-xmark"></i>&nbsp;Presenter
-</button>
-<button class="btn btn-primary" onclick={setSate}>
-  <i class="fa-solid fa-rotate-right"></i>&nbsp;Set Default
-</button><br/>
-<button class="btn btn-success" onclick={addPlayer('player')}>
-  <i class="fa-regular fa-square-plus"></i>&nbsp;Add Player
-</button>
-<button class="btn btn-info" onclick={addPlayer('npc')}>
-  <i class="fa-regular fa-square-plus"></i>&nbsp;Add NPC
-</button>
-<button class="btn btn-danger" onclick={addPlayer('monster')}>
-  <i class="fa-regular fa-square-plus"></i>&nbsp;Add Monster
-</button>
-<button class="btn btn-danger" onclick={clearMonsters}>
-  <i class="fa-solid fa-square-xmark"></i>&nbsp;Clear Monsters
-</button><br/>
-<button class="btn btn-primary" onclick={startInitiative}>
-  <i class="fa-solid fa-play"></i>&nbsp;Start
-</button>
-<button class="btn btn-primary" onclick={nextPlayer}>
-  <i class="fa-solid fa-arrow-down-long"></i>&nbsp;Next
-</button>
-<button class="btn btn-primary" onclick={previousPlayer}>
-  <i class="fa-solid fa-arrow-up-long"></i>&nbsp;Previous
-</button>
-<button class="btn btn-primary" onclick={endInitiative}>
-  <i class="fa-solid fa-hand"></i>&nbsp;End
-</button><br/>
-<button class="btn btn-primary" onclick={toggle('initiativeVisible')}>
-  {#if state[state.currentCampaign] && state[state.currentCampaign].initiativeVisible}
-    <i class="fa-solid fa-eye-slash"></i>
-  {:else}
-    <i class="fa-solid fa-eye"></i>
-  {/if}&nbsp;Initiative
-</button>
-<button class="btn btn-primary" onclick={toggle('healthVisible')}>
-  {#if state[state.currentCampaign] && state[state.currentCampaign].healthVisible}
-    <i class="fa-solid fa-eye-slash"></i>
-  {:else}
-    <i class="fa-solid fa-eye"></i>
-  {/if}&nbsp;Enemy Health
-</button>
-<button class="btn btn-primary" onclick={toggle('enemyHealthVisible')}>
-  {#if state[state.currentCampaign] && state[state.currentCampaign].enemyHealthVisible}
-    <i class="fa-solid fa-eye-slash"></i>
-  {:else}
-    <i class="fa-solid fa-eye"></i>
-  {/if}&nbsp;Player Health
-</button>
-<button class="btn btn-primary" onclick={initiateRest('long')}>
-  <i class="fa-solid fa-bed"></i>&nbsp;Long Rest
-</button><br/>
-Dsiplay Size: <input type="range" min="1" max="5" step="0.1" bind:value={state.dislaySize} onchange={broadcastState} />&nbsp;{state.dislaySize}
-<div class="display">
-  <PlayerList
-    players={state[state.currentCampaign] && state[state.currentCampaign].players}
-    onupdate={playersChange}
-    initiative={false}
-    healthVisible={true}
-    enemyHealthVisible={true} />
+
+<div class="console">
+  <header>
+    <div class="header-top">
+      <select class="form-control campaign-select" bind:value={state.currentCampaign} onchange={broadcastState}>
+        {#each state.campaigns || [] as campaign}
+          <option value={campaign}>{toTitleCase(campaign)}</option>
+        {/each}
+      </select>
+      <button class="btn btn-info btn-sm" onclick={openAddCampaign} title="Add campaign" aria-label="add campaign">
+        <i class="fa-regular fa-square-plus"></i>
+      </button>
+      <button class="btn btn-primary btn-sm" onclick={openSettings} title="Settings">
+        <i class="fa-solid fa-gear"></i>&nbsp;Settings
+      </button>
+    </div>
+  </header>
+
+  <div class="content-scroll">
+    <details open>
+      <summary><i class="fa-solid fa-display"></i>&nbsp;Presenter &amp; Media</summary>
+      <div class="drawer-content">
+        <button class="btn btn-primary" onclick={openPresenter} disabled={presenterVisible}>
+          <i class="fa-solid fa-arrow-up-right-from-square"></i>&nbsp;Open Presenter Window
+        </button>
+        <div class="presenter-row">
+          <button class="btn btn-info" onclick={togglePresenterFullscreen} disabled={!presenterVisible}>
+            {#if presenterFullscreen}
+              <i class="fa-solid fa-minimize"></i>&nbsp;Exit Fullscreen
+            {:else}
+              <i class="fa-solid fa-expand"></i>&nbsp;Fullscreen
+            {/if}
+          </button>
+          <button class="btn btn-danger" onclick={closePresenter} disabled={!presenterVisible}>
+            <i class="fa-solid fa-circle-xmark"></i>&nbsp;Close
+          </button>
+        </div>
+        <ImageList
+          images={state[state.currentCampaign] && state[state.currentCampaign].images}
+          onupdate={imagesChange} />
+      </div>
+    </details>
+
+    <details>
+      <summary><i class="fa-regular fa-square-plus"></i>&nbsp;Add Combatant</summary>
+      <div class="drawer-content">
+        <div class="quick-add-form">
+          <input type="text" class="form-control" placeholder="Name" bind:value={newName} />
+          <div class="form-row">
+            <input type="number" class="form-control" placeholder="Init Roll" bind:value={newInitiative} />
+            <input type="number" class="form-control" placeholder="Max HP" bind:value={newMaxHealth} />
+          </div>
+          <div class="btn-grid">
+            <button class="btn btn-success" onclick={addCombatant('player')}>PC</button>
+            <button class="btn btn-primary" onclick={addCombatant('npc')}>NPC</button>
+            <button class="btn btn-danger" onclick={addCombatant('monster')}>Monster</button>
+          </div>
+        </div>
+      </div>
+    </details>
+
+    <div class="visibility-row">
+      <button class="btn btn-info btn-sm" onclick={toggle('initiativeVisible')} title="Toggle initiative visibility">
+        <i class="fa-solid fa-eye{state[state.currentCampaign] && state[state.currentCampaign].initiativeVisible ? '' : '-slash'}"></i>&nbsp;Initiative
+      </button>
+      <button class="btn btn-info btn-sm" onclick={toggle('healthVisible')} title="Toggle enemy HP visibility">
+        <i class="fa-solid fa-eye{state[state.currentCampaign] && state[state.currentCampaign].healthVisible ? '' : '-slash'}"></i>&nbsp;Enemy HP
+      </button>
+      <button class="btn btn-info btn-sm" onclick={toggle('enemyHealthVisible')} title="Toggle player HP visibility">
+        <i class="fa-solid fa-eye{state[state.currentCampaign] && state[state.currentCampaign].enemyHealthVisible ? '' : '-slash'}"></i>&nbsp;Player HP
+      </button>
+    </div>
+
+    <PlayerList
+      players={state[state.currentCampaign] && state[state.currentCampaign].players}
+      onupdate={playersChange}
+      initiative={false}
+      healthVisible={true}
+      enemyHealthVisible={true} />
+  </div>
+
+  <footer class="combat-sticky-footer">
+    <div class="main-loop-buttons">
+      <button class="btn btn-info" onclick={previousPlayer} title="Previous turn" aria-label="previous turn">
+        <i class="fa-solid fa-backward-step"></i>
+      </button>
+      <button class="btn btn-primary btn-xl" onclick={nextPlayer}>
+        <i class="fa-solid fa-forward-step"></i>&nbsp;NEXT TURN
+      </button>
+    </div>
+    <div class="secondary-buttons">
+      <button class="btn btn-info btn-sm" onclick={startInitiative}>
+        <i class="fa-solid fa-play"></i>&nbsp;Start
+      </button>
+      <button class="btn btn-info btn-sm" onclick={endInitiative}>
+        <i class="fa-solid fa-hand"></i>&nbsp;End
+      </button>
+      <button class="btn btn-info btn-sm" onclick={initiateRest('long')}>
+        <i class="fa-solid fa-bed"></i>&nbsp;Long Rest
+      </button>
+      <button class="btn btn-danger btn-sm" onclick={clearMonsters}>
+        <i class="fa-solid fa-skull"></i>&nbsp;Clear Monsters
+      </button>
+    </div>
+  </footer>
 </div>
-<ImageList
-  images={state[state.currentCampaign] && state[state.currentCampaign].images}
-  onupdate={imagesChange} />
+
+{#if settingsOpen}
+  <SettingsOverlay {state} onsave={saveSettings} onclose={closeSettings} />
+{/if}
+{#if addCampaignOpen}
+  <AddCampaignDialog onconfirm={addCampaign} onclose={closeAddCampaign} />
+{/if}

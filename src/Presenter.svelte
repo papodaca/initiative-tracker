@@ -12,6 +12,16 @@
   let fullscreenState = false
   let presenter = WebviewWindow.getCurrent()
 
+  let campaign = $derived(state[state.currentCampaign])
+  // Auto-Hide Inactive Turns removes dead combatants from the Presenter view.
+  let visiblePlayers = $derived(
+    campaign && campaign.players
+      ? (campaign.autoHideInactive ? campaign.players.filter(p => !p.dead) : campaign.players)
+      : []
+  )
+  // Show Initiative Roll toggles the roll number on the Presenter.
+  let showInitiativeRoll = $derived(campaign ? campaign.showInitiativeRoll !== false : true)
+
   const incomingState = async (s) => {
     state = s
     applyTheme(state.theme)
@@ -42,12 +52,13 @@
 
 <svelte:window onkeyup={onKeyUp} />
 
-{#if state[state.currentCampaign] && state[state.currentCampaign].players && state[state.currentCampaign].initiativeVisible}
+{#if campaign && campaign.players && campaign.initiativeVisible}
   <div style="font-size: {state.dislaySize.toString()}em">
     <PlayerList
-      players={state[state.currentCampaign].players}
+      players={visiblePlayers}
       initiative={true}
-      enemyHealthVisible={state[state.currentCampaign].healthVisible}
-      healthVisible={state[state.currentCampaign].enemyHealthVisible} />
+      showInitiativeRoll={showInitiativeRoll}
+      enemyHealthVisible={campaign.healthVisible}
+      healthVisible={campaign.enemyHealthVisible} />
   </div>
 {/if}
