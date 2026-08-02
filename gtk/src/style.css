@@ -1,0 +1,26 @@
+/* Console combatant list — Adwaita accents, not Svelte CSS. */
+.combatant-row {
+  padding: 8px 12px;
+}
+
+.combatant-row.active {
+  background-color: alpha(@accent_bg_color, 0.18);
+}
+
+.combatant-row.dead .combatant-name {
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+
+.combatant-init {
+  font-weight: bold;
+  min-width: 2.5em;
+}
+
+.combatant-meta {
+  font-size: 0.85em;
+}
+
+.combatant-hp {
+  font-family: monospace;
+}

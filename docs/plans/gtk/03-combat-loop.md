@@ -3,7 +3,7 @@ title: Phase 3 — Combatant list & combat loop
 type: port
 date: 2026-08-02
 phase: 3
-status: planned
+status: done
 depends_on: [2]
 ---
 
@@ -95,14 +95,21 @@ From `PlayerList.svelte`:
 
 ## Verification
 
-- [ ] Add PC/NPC/Monster; sort order matches initiative desc
-- [ ] Edit HP to 0 → Dead; heal → not dead
-- [ ] Start/Next/Prev/End active highlighting correct + wraps
-- [ ] Long Rest heals only PC/NPC
-- [ ] Clear Monsters removes only monsters
-- [ ] Restart app: list and turn index restore
-- [ ] Tauri combat flow still works independently
+- [x] Add PC/NPC/Monster; sort order matches initiative desc
+- [x] Edit HP to 0 → Dead; heal → not dead
+- [x] Start/Next/Prev/End active highlighting correct + wraps
+- [x] Long Rest heals only PC/NPC
+- [x] Clear Monsters removes only monsters
+- [x] Restart app: list and turn index restore
+- [x] Tauri combat flow still works independently
 
 ## Exit criteria
 
 Console can run a full combat session with persistence; ready for Presenter subscription.
+
+## Implementation notes (2026-08-02)
+
+- Store: `add_combatant` / `update_combatant` / `delete_combatant` / visibility setters + existing loop helpers; every mutation saves + notifies.
+- UI: `gtk/src/combat_ui.rs` — add form (`AdwEntryRow` + `AdwSpinRow` + PC/NPC/Monster), visibility `GtkToggleButton`s, `GtkListBox` rows with `GtkEditableLabel` inline edits, sticky footer actions.
+- Console list always shows full HP; toggles persist for Presenter (Phase 4).
+- Domain HP display helpers remain in `visibility.rs` for Presenter reuse.

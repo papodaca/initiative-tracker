@@ -1,4 +1,5 @@
 mod application;
+mod combat_ui;
 mod dialogs;
 mod domain;
 mod persistence;

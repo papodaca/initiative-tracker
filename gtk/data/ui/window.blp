@@ -1,14 +1,13 @@
 using Gtk 4.0;
 using Adw 1;
 
-/* Phase 2 Console shell structure.
- * The running window is still constructed in Rust (`window.rs`) so controllers
- * can own StateStore wiring. This Blueprint documents the target chrome for a
- * later template-load migration. */
+/* Phase 3 Console structure (combat loop live in Rust `window.rs` /
+ * `combat_ui.rs`). Blueprint documents chrome for a later template-load
+ * migration. */
 template $InitiativeTrackerWindow : Adw.ApplicationWindow {
   title: _("Initiative Tracker: Console");
   default-width: 540;
-  default-height: 640;
+  default-height: 720;
 
   Adw.ToolbarView {
     [top]
@@ -64,15 +63,25 @@ template $InitiativeTrackerWindow : Adw.ApplicationWindow {
             label: _("Add Combatant");
           }
 
-          Adw.PreferencesGroup {
-            title: _("Combatants");
-            description: _("Combatant list and edits arrive in Phase 3.");
+          Box {
+            orientation: horizontal;
+            spacing: 6;
+            homogeneous: true;
+            /* Visibility toggles: Initiative / Enemy HP / Player HP */
+          }
+
+          Box {
+            orientation: vertical;
+            spacing: 6;
+            /* Combatant list (GtkListBox boxed-list) */
           }
         }
       }
     }
 
     [bottom]
-    ActionBar {}
+    ActionBar {
+      /* Previous / Next Turn / Start / End / Long Rest / Clear Monsters */
+    }
   }
 }

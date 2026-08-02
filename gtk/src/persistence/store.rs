@@ -3,8 +3,9 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 use crate::domain::{
-    clear_monsters, long_rest, next_turn, previous_turn, sort_by_initiative, start_initiative,
-    end_initiative, AppState, Campaign, Combatant, CombatantKind,
+    clear_monsters, long_rest, next_turn, previous_turn, resolve_combatant_name, sort_by_initiative,
+    start_initiative, end_initiative, update_player_active, AppState, Campaign, Combatant,
+    CombatantKind,
 };
 use crate::persistence::{
     default_state_path, import_tauri_state, load_json, save_json, tauri_candidate_paths,
@@ -144,10 +145,96 @@ impl StateStore {
         max_health: i32,
     ) -> Result<(), PersistError> {
         self.with_mut(|state| {
+            let name = resolve_combatant_name(&name, kind);
             let c = Combatant::new(name, kind, initiative, max_health);
             let campaign = state.current_mut();
             campaign.players.push(c);
             sort_by_initiative(&mut campaign.players);
+        })
+    }
+
+    pub fn update_combatant(
+        &self,
+        id: &str,
+        patch: CombatantPatch,
+    ) -> Result<bool, PersistError> {
+        self.with_mut(|state| {
+            let campaign = state.current_mut();
+            let Some(index) = campaign.players.iter().position(|p| p.id == id) else {
+                return false;
+            };
+            let resort = matches!(patch, CombatantPatch::Initiative(_));
+            {
+                let c = &mut campaign.players[index];
+                match patch {
+                    CombatantPatch::Name(name) => {
+                        let name = name.trim();
+                        if !name.is_empty() {
+                            c.name = name.to_string();
+                        }
+                    }
+                    CombatantPatch::Initiative(initiative) => {
+                        c.initiative = initiative;
+                    }
+                    CombatantPatch::Health(health) => {
+                        c.health = health;
+                        c.normalize_dead();
+                    }
+                    CombatantPatch::MaxHealth(max_health) => {
+                        c.max_health = if max_health == 0 {
+                            crate::domain::DEFAULT_HEALTH
+                        } else {
+                            max_health
+                        };
+                        c.normalize_dead();
+                    }
+                }
+            }
+            if resort {
+                // Keep `active` flags on the combatant structs (parity with Svelte sortList).
+                sort_by_initiative(&mut campaign.players);
+            }
+            true
+        })
+    }
+
+    pub fn delete_combatant(&self, id: &str) -> Result<bool, PersistError> {
+        self.with_mut(|state| {
+            let campaign = state.current_mut();
+            let before = campaign.players.len();
+            campaign.players.retain(|p| p.id != id);
+            if campaign.players.len() == before {
+                return false;
+            }
+            if let Some(i) = campaign.current_player {
+                if campaign.players.is_empty() {
+                    campaign.current_player = None;
+                } else if i >= campaign.players.len() {
+                    campaign.current_player = Some(campaign.players.len() - 1);
+                }
+            }
+            update_player_active(campaign);
+            true
+        })
+    }
+
+    pub fn set_initiative_visible(&self, visible: bool) -> Result<(), PersistError> {
+        self.with_mut(|s| {
+            s.current_mut().initiative_visible = visible;
+        })
+    }
+
+    pub fn set_health_visible(&self, visible: bool) -> Result<(), PersistError> {
+        // UI label "Enemy HP" — Presenter mapping documented in visibility.rs.
+        self.with_mut(|s| {
+            s.current_mut().health_visible = visible;
+        })
+    }
+
+    pub fn set_enemy_health_visible(&self, visible: bool) -> Result<(), PersistError> {
+        // UI label "Player HP" — Presenter mapping documented in visibility.rs.
+        self.with_mut(|s| {
+            s.current_mut().enemy_health_visible = visible;
         })
     }
 
@@ -203,6 +290,15 @@ impl StateStore {
             camp.auto_hide_inactive = update.auto_hide_inactive;
         })
     }
+}
+
+/// Field patch for inline combatant edits.
+#[derive(Debug, Clone)]
+pub enum CombatantPatch {
+    Name(String),
+    Initiative(i32),
+    Health(i32),
+    MaxHealth(i32),
 }
 
 /// Draft values from the settings dialog.
@@ -334,6 +430,99 @@ mod tests {
         assert!(!camp.show_initiative_roll);
         assert!(camp.auto_hide_inactive);
         assert!(!reloaded.campaign_data.contains_key("default"));
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn add_update_delete_combatant_persists() {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!("it-store-combat-{nanos}.json"));
+        save_json(&path, &AppState::default()).unwrap();
+        let store = StateStore::new(path.clone());
+        store.load().unwrap();
+
+        store
+            .add_combatant("".into(), CombatantKind::Monster, 20, 0)
+            .unwrap();
+        let state = store.state();
+        let monster = state
+            .current()
+            .unwrap()
+            .players
+            .iter()
+            .find(|p| p.kind == CombatantKind::Monster)
+            .unwrap();
+        assert_eq!(monster.name, "New Monster");
+        assert_eq!(monster.max_health, 10);
+        assert_eq!(state.current().unwrap().players[0].initiative, 20);
+
+        let id = monster.id.clone();
+        store
+            .update_combatant(&id, CombatantPatch::Health(0))
+            .unwrap();
+        assert!(store.current_campaign().players.iter().find(|p| p.id == id).unwrap().dead);
+
+        store
+            .update_combatant(&id, CombatantPatch::Health(4))
+            .unwrap();
+        assert!(!store.current_campaign().players.iter().find(|p| p.id == id).unwrap().dead);
+
+        assert!(store.delete_combatant(&id).unwrap());
+        assert!(!store
+            .current_campaign()
+            .players
+            .iter()
+            .any(|p| p.id == id));
+
+        let reloaded = load_json(&path).unwrap();
+        assert!(!reloaded
+            .current()
+            .unwrap()
+            .players
+            .iter()
+            .any(|p| p.kind == CombatantKind::Monster));
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn visibility_toggles_persist() {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!("it-store-vis-{nanos}.json"));
+        save_json(&path, &AppState::default()).unwrap();
+        let store = StateStore::new(path.clone());
+        store.load().unwrap();
+        store.set_initiative_visible(true).unwrap();
+        store.set_health_visible(true).unwrap();
+        store.set_enemy_health_visible(true).unwrap();
+        let camp = load_json(&path).unwrap().current().unwrap().clone();
+        assert!(camp.initiative_visible);
+        assert!(camp.health_visible);
+        assert!(camp.enemy_health_visible);
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn combat_loop_actions_persist_active() {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!("it-store-loop-{nanos}.json"));
+        save_json(&path, &AppState::default()).unwrap();
+        let store = StateStore::new(path.clone());
+        store.load().unwrap();
+        store.start_initiative().unwrap();
+        assert_eq!(store.current_campaign().current_player, Some(0));
+        store.next_turn().unwrap();
+        assert_eq!(store.current_campaign().current_player, Some(1));
+        store.end_initiative().unwrap();
+        assert!(store.current_campaign().current_player.is_none());
         let _ = std::fs::remove_file(&path);
     }
 }

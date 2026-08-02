@@ -304,6 +304,39 @@ pub fn to_title_case(s: &str) -> String {
     }
 }
 
+/// JSON / form slug for a combatant kind (`player` / `npc` / `monster`).
+pub fn kind_slug(kind: CombatantKind) -> &'static str {
+    match kind {
+        CombatantKind::Player => "player",
+        CombatantKind::Npc => "npc",
+        CombatantKind::Monster => "monster",
+    }
+}
+
+/// Console list meta label (`PC` / `NPC` / `Monster`).
+pub fn kind_label(kind: CombatantKind) -> &'static str {
+    match kind {
+        CombatantKind::Player => "PC",
+        CombatantKind::Npc => "NPC",
+        CombatantKind::Monster => "Monster",
+    }
+}
+
+/// Default name when the add form leaves name empty: `New {TitleCase(slug)}`.
+pub fn default_combatant_name(kind: CombatantKind) -> String {
+    format!("New {}", to_title_case(kind_slug(kind)))
+}
+
+/// Resolve add-form name (trim; empty → default).
+pub fn resolve_combatant_name(name: &str, kind: CombatantKind) -> String {
+    let trimmed = name.trim();
+    if trimmed.is_empty() {
+        default_combatant_name(kind)
+    } else {
+        trimmed.to_string()
+    }
+}
+
 /// Accept JSON numbers or numeric strings (Tauri / InPlaceEdit sometimes stores strings).
 fn deserialize_i32_lenient<'de, D>(deserializer: D) -> Result<i32, D::Error>
 where
@@ -417,5 +450,24 @@ mod tests {
         assert!(state.set_current_campaign("Family"));
         assert_eq!(state.current_campaign, "Family");
         assert!(!state.set_current_campaign("missing"));
+    }
+
+    #[test]
+    fn resolve_combatant_name_defaults() {
+        assert_eq!(
+            resolve_combatant_name("", CombatantKind::Player),
+            "New Player"
+        );
+        assert_eq!(
+            resolve_combatant_name("  ", CombatantKind::Npc),
+            "New Npc"
+        );
+        assert_eq!(
+            resolve_combatant_name("Goblin", CombatantKind::Monster),
+            "Goblin"
+        );
+        assert_eq!(kind_label(CombatantKind::Player), "PC");
+        assert_eq!(kind_label(CombatantKind::Npc), "NPC");
+        assert_eq!(kind_label(CombatantKind::Monster), "Monster");
     }
 }

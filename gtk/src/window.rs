@@ -1,23 +1,42 @@
 use adw::prelude::*;
 use adw::subclass::prelude::*;
-use gtk::glib;
 use gtk::gio;
+use gtk::glib;
+use std::cell::{Cell, OnceCell, RefCell};
+use std::rc::Rc;
 
+use crate::combat_ui::{
+    load_console_styles, AddCombatantForm, CombatFooter, CombatantList, UiGuard, VisibilityToggles,
+};
 use crate::dialogs::{present_add_campaign, present_settings};
 use crate::domain::to_title_case;
 use crate::persistence::StateStore;
 use crate::theme::apply_theme;
 
+struct CombatWidgets {
+    visibility: VisibilityToggles,
+    list: CombatantList,
+}
+
+impl std::fmt::Debug for CombatWidgets {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CombatWidgets").finish_non_exhaustive()
+    }
+}
+
 mod imp {
     use super::*;
-    use std::cell::{Cell, OnceCell};
 
     #[derive(Debug, Default)]
     pub struct InitiativeTrackerWindow {
         pub store: OnceCell<StateStore>,
         pub campaign_dropdown: OnceCell<gtk::DropDown>,
-        pub status_label: OnceCell<gtk::Label>,
+        pub body: OnceCell<gtk::Box>,
+        pub toolbar: OnceCell<adw::ToolbarView>,
+        pub combat: RefCell<Option<CombatWidgets>>,
+        pub ui_guard: OnceCell<UiGuard>,
         pub updating_dropdown: Cell<bool>,
+        pub combat_built: Cell<bool>,
     }
 
     #[glib::object_subclass]
@@ -32,9 +51,13 @@ mod imp {
             self.parent_constructed();
             let obj = self.obj();
 
+            load_console_styles();
+
             obj.set_title(Some("Initiative Tracker: Console"));
             obj.set_default_width(540);
-            obj.set_default_height(640);
+            obj.set_default_height(720);
+
+            let _ = self.ui_guard.set(Rc::new(Cell::new(false)));
 
             let toolbar = adw::ToolbarView::new();
             let header = adw::HeaderBar::new();
@@ -87,86 +110,13 @@ mod imp {
                 "Presenter & Media",
                 "Presenter window and scene images arrive in later phases.",
             ));
-            body.append(&placeholder_expander(
-                "Add Combatant",
-                "PC / NPC / Monster form arrives in Phase 3.",
-            ));
-
-            let visibility = gtk::Box::builder()
-                .orientation(gtk::Orientation::Horizontal)
-                .spacing(6)
-                .homogeneous(true)
-                .build();
-            for label in ["Initiative", "Enemy HP", "Player HP"] {
-                let btn = gtk::Button::with_label(label);
-                btn.set_sensitive(false);
-                btn.add_css_class("pill");
-                visibility.append(&btn);
-            }
-            body.append(&visibility);
-
-            let list_stub = adw::PreferencesGroup::builder()
-                .title("Combatants")
-                .description("Combatant list and edits arrive in Phase 3.")
-                .build();
-            let status = gtk::Label::builder()
-                .label("Loading state…")
-                .wrap(true)
-                .xalign(0.0)
-                .margin_top(8)
-                .margin_bottom(8)
-                .margin_start(12)
-                .margin_end(12)
-                .selectable(true)
-                .build();
-            // Prefer a simple status row inside the body under the group title.
-            let status_frame = gtk::Frame::new(None);
-            status_frame.set_child(Some(&status));
-            let _ = self.status_label.set(status);
-            body.append(&list_stub);
-            body.append(&status_frame);
 
             clamp.set_child(Some(&body));
             scrolled.set_child(Some(&clamp));
             toolbar.set_content(Some(&scrolled));
 
-            let footer = gtk::Box::builder()
-                .orientation(gtk::Orientation::Vertical)
-                .spacing(8)
-                .margin_top(8)
-                .margin_bottom(8)
-                .margin_start(12)
-                .margin_end(12)
-                .build();
-            let loop_row = gtk::Box::builder()
-                .orientation(gtk::Orientation::Horizontal)
-                .spacing(8)
-                .build();
-            let prev = gtk::Button::from_icon_name("media-skip-backward-symbolic");
-            prev.set_sensitive(false);
-            let next = gtk::Button::with_label("Next Turn");
-            next.set_sensitive(false);
-            next.add_css_class("suggested-action");
-            next.set_hexpand(true);
-            loop_row.append(&prev);
-            loop_row.append(&next);
-            footer.append(&loop_row);
-
-            let secondary = gtk::Box::builder()
-                .orientation(gtk::Orientation::Horizontal)
-                .spacing(6)
-                .homogeneous(true)
-                .build();
-            for label in ["Start", "End", "Long Rest", "Clear Monsters"] {
-                let btn = gtk::Button::with_label(label);
-                btn.set_sensitive(false);
-                secondary.append(&btn);
-            }
-            footer.append(&secondary);
-
-            let footer_bar = gtk::ActionBar::new();
-            footer_bar.set_center_widget(Some(&footer));
-            toolbar.add_bottom_bar(&footer_bar);
+            let _ = self.body.set(body);
+            let _ = self.toolbar.set(toolbar.clone());
 
             obj.set_content(Some(&toolbar));
 
@@ -288,6 +238,38 @@ impl InitiativeTrackerWindow {
         }
     }
 
+    fn ensure_combat_ui(&self) {
+        let imp = self.imp();
+        if imp.combat_built.get() {
+            return;
+        }
+        let Some(store) = imp.store.get().cloned() else {
+            return;
+        };
+        let Some(body) = imp.body.get() else {
+            return;
+        };
+        let Some(toolbar) = imp.toolbar.get() else {
+            return;
+        };
+        let Some(guard) = imp.ui_guard.get().cloned() else {
+            return;
+        };
+
+        let add = AddCombatantForm::build(store.clone());
+        let visibility = VisibilityToggles::build(store.clone(), guard);
+        let list = CombatantList::build();
+        let footer = CombatFooter::build(store);
+
+        body.append(&add.expander);
+        body.append(&visibility.container);
+        body.append(&list.container);
+        toolbar.add_bottom_bar(&footer.action_bar);
+
+        *imp.combat.borrow_mut() = Some(CombatWidgets { visibility, list });
+        imp.combat_built.set(true);
+    }
+
     fn refresh_from_store(&self) {
         let imp = self.imp();
         let Some(store) = imp.store.get() else {
@@ -316,17 +298,19 @@ impl InitiativeTrackerWindow {
             imp.updating_dropdown.set(false);
         }
 
-        if let Some(label) = imp.status_label.get() {
-            let camp = state.current();
-            let n_players = camp.map(|c| c.players.len()).unwrap_or(0);
-            label.set_label(&format!(
-                "Campaign: {}\nCombatants: {n_players}\nTheme: {:?}\nDisplay size: {:.1}\nShow initiative roll: {}\nAuto-hide inactive: {}",
-                state.current_campaign,
-                state.theme,
-                state.display_size,
-                camp.map(|c| c.show_initiative_roll).unwrap_or(true),
-                camp.map(|c| c.auto_hide_inactive).unwrap_or(false),
-            ));
+        self.ensure_combat_ui();
+
+        if let Some(combat) = imp.combat.borrow().as_ref() {
+            let camp = state.current().cloned().unwrap_or_default();
+            if let Some(guard) = imp.ui_guard.get() {
+                combat.visibility.refresh(
+                    camp.initiative_visible,
+                    camp.health_visible,
+                    camp.enemy_health_visible,
+                    guard,
+                );
+            }
+            combat.list.refresh(&camp.players, store);
         }
     }
 
@@ -344,16 +328,28 @@ impl InitiativeTrackerWindow {
                     self.refresh_from_store();
                 }
                 Err(e) => {
-                    if let Some(label) = imp.status_label.get() {
-                        label.set_label(&format!("Failed to load state:\n{e}"));
+                    eprintln!("initiative-tracker: failed to load state: {e}");
+                    if let Some(body) = imp.body.get() {
+                        body.append(&error_label(&format!("Failed to load state:\n{e}")));
                     }
                 }
             },
             Err(e) => {
-                if let Some(label) = imp.status_label.get() {
-                    label.set_label(&format!("Failed to resolve data path:\n{e}"));
+                eprintln!("initiative-tracker: failed to resolve data path: {e}");
+                if let Some(body) = imp.body.get() {
+                    body.append(&error_label(&format!("Failed to resolve data path:\n{e}")));
                 }
             }
         }
     }
+}
+
+fn error_label(text: &str) -> gtk::Label {
+    gtk::Label::builder()
+        .label(text)
+        .wrap(true)
+        .xalign(0.0)
+        .selectable(true)
+        .css_classes(["error"])
+        .build()
 }
