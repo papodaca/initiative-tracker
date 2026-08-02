@@ -3,7 +3,7 @@ title: Phase 2 — Console shell (campaigns & settings)
 type: port
 date: 2026-08-02
 phase: 2
-status: planned
+status: done
 depends_on: [0, 1]
 ---
 
@@ -80,12 +80,19 @@ Keep logic in Rust controllers; Blueprint for structure.
 
 ## Verification
 
-- [ ] Create two campaigns, switch, restart GTK app — selection and data survive
-- [ ] Rename campaign rekeys without data loss
-- [ ] Theme system/light/dark matches desktop expectation
-- [ ] Display size persists (even if Presenter not yet reading it)
-- [ ] Tauri Console still behaves as before
+- [x] Create two campaigns, switch, restart GTK app — selection and data survive
+- [x] Rename campaign rekeys without data loss
+- [x] Theme system/light/dark matches desktop expectation
+- [x] Display size persists (even if Presenter not yet reading it)
+- [x] Tauri Console still behaves as before
 
 ## Exit criteria
 
-Campaign + settings flows reach feature parity; Console shell ready for combat list integration.
+Campaign + settings flows reach feature parity; Console shell ready for combat list integration. ✅
+
+## Implementation notes (2026-08-02)
+
+- Console chrome is built in Rust (`gtk/src/window.rs`) with Blueprint stubs documenting structure (`window.blp`, `dialogs/*.blp`).
+- `StateStore` gained campaign switch/add + `apply_settings` (rename rekey, theme, display size, campaign flags).
+- Theme applied via `AdwStyleManager` (`gtk/src/theme.rs`) on load and settings save.
+- Add-campaign uses `AdwAlertDialog`; settings uses `AdwPreferencesDialog` with Save Changes.

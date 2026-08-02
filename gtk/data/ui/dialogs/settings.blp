@@ -1,0 +1,42 @@
+using Gtk 4.0;
+using Adw 1;
+
+/* Structural stub for settings — presented from Rust (`dialogs/settings.rs`). */
+Adw.PreferencesDialog {
+  title: _("Campaign Settings");
+  search-enabled: false;
+
+  Adw.PreferencesPage {
+    Adw.PreferencesGroup {
+      Adw.ComboRow {
+        title: _("Theme");
+      }
+
+      Adw.ActionRow {
+        title: _("Display Size");
+        subtitle: _("Presenter text scale");
+        activatable: false;
+      }
+
+      Adw.EntryRow {
+        title: _("Campaign Name");
+      }
+
+      Adw.SwitchRow {
+        title: _("Show Initiative Roll");
+      }
+
+      Adw.SwitchRow {
+        title: _("Auto-Hide Inactive Turns");
+        subtitle: _("Hide dead combatants on the Presenter");
+      }
+
+      Adw.ButtonRow {
+        title: _("Save Changes");
+        styles [
+          "suggested-action",
+        ]
+      }
+    }
+  }
+}

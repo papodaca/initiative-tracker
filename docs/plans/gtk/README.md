@@ -92,7 +92,7 @@ Shared domain logic lives under `gtk/` (or a small `crates/core` if extraction p
 |---|---|---|---|
 | 0 | [00-scaffold.md](./00-scaffold.md) | Meson/Cargo/Flatpak shell on GNOME 50 | Empty Adwaita app runs beside Tauri |
 | 1 | [01-domain-persistence.md](./01-domain-persistence.md) | Domain model, JSON store, Tauri import | State round-trips; tests pass ✅ |
-| 2 | [02-console-shell.md](./02-console-shell.md) | Console chrome, campaigns, settings | Navigation/settings parity |
+| 2 | [02-console-shell.md](./02-console-shell.md) | Console chrome, campaigns, settings | Navigation/settings parity ✅ |
 | 3 | [03-combat-loop.md](./03-combat-loop.md) | Combatants + combat actions | Full combat without Presenter |
 | 4 | [04-presenter.md](./04-presenter.md) | Presenter window + live sync | Dual-window parity |
 | 5 | [05-scene-images.md](./05-scene-images.md) | Images + crossfade | Media parity |

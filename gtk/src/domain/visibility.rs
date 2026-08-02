@@ -1,3 +1,5 @@
+#![allow(dead_code)] // Presenter consumers arrive in Phase 4.
+
 use super::{Campaign, Combatant, CombatantKind};
 
 /// Presenter list filter: when `auto_hide_inactive`, drop dead combatants.

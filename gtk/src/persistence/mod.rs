@@ -15,5 +15,5 @@ mod store;
 mod tauri_import;
 
 pub use json_store::{default_state_path, load_json, save_json, PersistError};
-pub use store::StateStore;
+pub use store::{SettingsUpdate, StateStore};
 pub use tauri_import::{import_tauri_state, tauri_candidate_paths, ImportReport};

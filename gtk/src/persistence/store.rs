@@ -183,6 +183,36 @@ impl StateStore {
             .cloned()
             .unwrap_or_default()
     }
+
+    pub fn set_current_campaign(&self, name: &str) -> Result<bool, PersistError> {
+        self.with_mut(|s| s.set_current_campaign(name))
+    }
+
+    pub fn add_campaign(&self, name: &str) -> Result<bool, PersistError> {
+        self.with_mut(|s| s.add_campaign(name))
+    }
+
+    /// Apply settings dialog fields (rename + theme + display + campaign flags).
+    pub fn apply_settings(&self, update: SettingsUpdate) -> Result<(), PersistError> {
+        self.with_mut(|s| {
+            let _ = s.rename_current_campaign(&update.campaign_name);
+            s.theme = update.theme;
+            s.display_size = update.display_size.clamp(1.0, 5.0);
+            let camp = s.current_mut();
+            camp.show_initiative_roll = update.show_initiative_roll;
+            camp.auto_hide_inactive = update.auto_hide_inactive;
+        })
+    }
+}
+
+/// Draft values from the settings dialog.
+#[derive(Debug, Clone)]
+pub struct SettingsUpdate {
+    pub campaign_name: String,
+    pub theme: crate::domain::Theme,
+    pub display_size: f64,
+    pub show_initiative_roll: bool,
+    pub auto_hide_inactive: bool,
 }
 
 fn try_import_tauri() -> Option<(AppState, ImportReport)> {
@@ -250,6 +280,60 @@ mod tests {
             .unwrap();
         let reloaded = load_json(&path).unwrap();
         assert_eq!(reloaded.theme, Theme::Light);
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn campaign_switch_and_add_persist() {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!("it-store-camp-{nanos}.json"));
+        save_json(&path, &AppState::default()).unwrap();
+        let store = StateStore::new(path.clone());
+        store.load().unwrap();
+
+        assert!(store.add_campaign("Family").unwrap());
+        assert!(!store.add_campaign("Family").unwrap());
+        assert!(store.set_current_campaign("Family").unwrap());
+
+        let reloaded = load_json(&path).unwrap();
+        assert_eq!(reloaded.current_campaign, "Family");
+        assert!(reloaded.campaigns.contains(&"Family".to_string()));
+        assert_eq!(reloaded.campaign_data["Family"].players.len(), 3);
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn apply_settings_renames_and_persists() {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!("it-store-settings-{nanos}.json"));
+        save_json(&path, &AppState::default()).unwrap();
+        let store = StateStore::new(path.clone());
+        store.load().unwrap();
+
+        store
+            .apply_settings(SettingsUpdate {
+                campaign_name: "Adventure".into(),
+                theme: Theme::Dark,
+                display_size: 2.5,
+                show_initiative_roll: false,
+                auto_hide_inactive: true,
+            })
+            .unwrap();
+
+        let reloaded = load_json(&path).unwrap();
+        assert_eq!(reloaded.current_campaign, "Adventure");
+        assert_eq!(reloaded.theme, Theme::Dark);
+        assert!((reloaded.display_size - 2.5).abs() < f64::EPSILON);
+        let camp = reloaded.current().unwrap();
+        assert!(!camp.show_initiative_roll);
+        assert!(camp.auto_hide_inactive);
+        assert!(!reloaded.campaign_data.contains_key("default"));
         let _ = std::fs::remove_file(&path);
     }
 }

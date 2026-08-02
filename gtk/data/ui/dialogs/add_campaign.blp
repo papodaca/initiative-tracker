@@ -1,0 +1,21 @@
+using Gtk 4.0;
+using Adw 1;
+
+/* Structural stub for add-campaign — presented from Rust (`dialogs/add_campaign.rs`). */
+Adw.AlertDialog {
+  heading: _("Add Campaign");
+  body: _("Enter a unique campaign name.");
+  default-response: "create";
+  close-response: "cancel";
+
+  responses [
+    cancel: _("Cancel"),
+    create: _("Create") suggested,
+  ]
+
+  extra-child: Entry {
+    placeholder-text: _("Campaign name");
+    activates-default: true;
+    hexpand: true;
+  };
+}

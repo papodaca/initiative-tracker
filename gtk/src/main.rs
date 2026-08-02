@@ -1,6 +1,8 @@
 mod application;
+mod dialogs;
 mod domain;
 mod persistence;
+mod theme;
 mod window;
 
 use application::InitiativeTrackerApplication;

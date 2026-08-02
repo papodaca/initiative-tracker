@@ -241,6 +241,67 @@ impl AppState {
     pub fn current(&self) -> Option<&Campaign> {
         self.campaign_data.get(&self.current_campaign)
     }
+
+    /// Add a campaign seeded like `defaultCampaing()`. Rejects empty / duplicate names.
+    pub fn add_campaign(&mut self, name: &str) -> bool {
+        let name = name.trim();
+        if name.is_empty() || self.campaigns.iter().any(|c| c == name) {
+            return false;
+        }
+        self.campaigns.push(name.to_string());
+        self.campaign_data
+            .insert(name.to_string(), Campaign::default_seed());
+        true
+    }
+
+    /// Switch `current_campaign` if the name exists in the list.
+    pub fn set_current_campaign(&mut self, name: &str) -> bool {
+        if !self.campaigns.iter().any(|c| c == name) {
+            return false;
+        }
+        self.current_campaign = name.to_string();
+        true
+    }
+
+    /// Rename/rekey the current campaign when the new name is unique.
+    /// Parity with `saveSettings` in `Console.svelte`.
+    pub fn rename_current_campaign(&mut self, new_name: &str) -> bool {
+        let new_name = new_name.trim();
+        if new_name.is_empty() {
+            return false;
+        }
+        let old = self.current_campaign.clone();
+        if new_name == old {
+            return true;
+        }
+        if !self.campaigns.iter().any(|c| c == &old)
+            || self.campaigns.iter().any(|c| c == new_name)
+        {
+            return false;
+        }
+        if let Some(data) = self.campaign_data.remove(&old) {
+            self.campaign_data.insert(new_name.to_string(), data);
+        } else {
+            self.campaign_data
+                .insert(new_name.to_string(), Campaign::default_seed());
+        }
+        for c in &mut self.campaigns {
+            if *c == old {
+                *c = new_name.to_string();
+            }
+        }
+        self.current_campaign = new_name.to_string();
+        true
+    }
+}
+
+/// Title-case for campaign labels (parity with Svelte `toTitleCase`).
+pub fn to_title_case(s: &str) -> String {
+    let mut chars = s.chars();
+    match chars.next() {
+        None => String::new(),
+        Some(c) => c.to_uppercase().collect::<String>() + chars.as_str(),
+    }
 }
 
 /// Accept JSON numbers or numeric strings (Tauri / InPlaceEdit sometimes stores strings).
@@ -323,5 +384,38 @@ mod tests {
         assert_eq!(c.initiative, 5);
         assert_eq!(c.health, 0);
         assert_eq!(c.max_health, 10);
+    }
+
+    #[test]
+    fn add_campaign_rejects_empty_and_duplicate() {
+        let mut state = AppState::default();
+        assert!(!state.add_campaign(""));
+        assert!(!state.add_campaign("default"));
+        assert!(state.add_campaign("Family"));
+        assert!(state.campaign_data.contains_key("Family"));
+        assert_eq!(state.campaign_data["Family"].players.len(), 3);
+    }
+
+    #[test]
+    fn rename_rekeys_without_data_loss() {
+        let mut state = AppState::default();
+        state.current_mut().players[0].name = "Hero".into();
+        assert!(state.rename_current_campaign("Adventure"));
+        assert_eq!(state.current_campaign, "Adventure");
+        assert!(!state.campaign_data.contains_key("default"));
+        assert_eq!(state.campaign_data["Adventure"].players[0].name, "Hero");
+        assert_eq!(state.campaigns, vec!["Adventure".to_string()]);
+        assert!(state.rename_current_campaign("Adventure")); // same name is a no-op success
+        state.add_campaign("Other");
+        assert!(!state.rename_current_campaign("Other")); // duplicate
+    }
+
+    #[test]
+    fn set_current_campaign_switches() {
+        let mut state = AppState::default();
+        state.add_campaign("Family");
+        assert!(state.set_current_campaign("Family"));
+        assert_eq!(state.current_campaign, "Family");
+        assert!(!state.set_current_campaign("missing"));
     }
 }

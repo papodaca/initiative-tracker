@@ -9,4 +9,5 @@ mod visibility;
 
 pub use combat::*;
 pub use state::*;
+#[allow(unused_imports)] // used by Phase 3+ combat / presenter UI
 pub use visibility::*;

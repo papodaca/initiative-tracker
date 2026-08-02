@@ -1,16 +1,78 @@
 using Gtk 4.0;
 using Adw 1;
 
-/* Phase 0 stub — Blueprint toolchain is wired in Meson.
- * The running window is still built in code (window.rs).
- * Later phases will load this template via GResource. */
+/* Phase 2 Console shell structure.
+ * The running window is still constructed in Rust (`window.rs`) so controllers
+ * can own StateStore wiring. This Blueprint documents the target chrome for a
+ * later template-load migration. */
 template $InitiativeTrackerWindow : Adw.ApplicationWindow {
   title: _("Initiative Tracker: Console");
   default-width: 540;
-  default-height: 600;
+  default-height: 640;
 
   Adw.ToolbarView {
     [top]
-    Adw.HeaderBar {}
+    Adw.HeaderBar {
+      [start]
+      Button {
+        icon-name: "list-add-symbolic";
+        tooltip-text: _("Add campaign");
+        styles [
+          "flat",
+        ]
+      }
+
+      title-widget: DropDown {
+        hexpand: true;
+      };
+
+      [end]
+      Button {
+        tooltip-text: _("Settings");
+        styles [
+          "flat",
+        ]
+
+        child: Adw.ButtonContent {
+          icon-name: "emblem-system-symbolic";
+          label: _("Settings");
+        };
+      }
+    }
+
+    ScrolledWindow {
+      hscrollbar-policy: never;
+      vexpand: true;
+
+      Adw.Clamp {
+        maximum-size: 560;
+        tightening-threshold: 400;
+
+        Box {
+          orientation: vertical;
+          spacing: 12;
+          margin-top: 12;
+          margin-bottom: 12;
+          margin-start: 12;
+          margin-end: 12;
+
+          Expander {
+            label: _("Presenter & Media");
+          }
+
+          Expander {
+            label: _("Add Combatant");
+          }
+
+          Adw.PreferencesGroup {
+            title: _("Combatants");
+            description: _("Combatant list and edits arrive in Phase 3.");
+          }
+        }
+      }
+    }
+
+    [bottom]
+    ActionBar {}
   }
 }
