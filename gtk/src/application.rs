@@ -21,14 +21,18 @@ mod imp {
         fn constructed(&self) {
             self.parent_constructed();
             let obj = self.obj();
-            // App switcher / taskbar icon when running from a meson install or Flatpak.
-            gtk::Window::set_default_icon_name("im.apodaca.InitiativeTracker");
             obj.setup_gactions();
             obj.set_accels_for_action("app.quit", &["<Control>q"]);
         }
     }
 
     impl ApplicationImpl for InitiativeTrackerApplication {
+        fn startup(&self) {
+            self.parent_startup();
+            // Must run after GTK init (startup), not in constructed.
+            gtk::Window::set_default_icon_name("im.apodaca.InitiativeTracker");
+        }
+
         fn activate(&self) {
             let application = self.obj();
             let window = application.active_window().unwrap_or_else(|| {

@@ -16,6 +16,9 @@ dist-ssr
 gtk/build/
 gtk/flatpak-build/
 gtk/.flatpak-builder/
+gtk/flatpak/.flatpak-builder/
+gtk/flatpak/build-dir/
+gtk/flatpak/repo/
 gtk/target/
 gtk/cargo-home/
 **/cargo-target/
