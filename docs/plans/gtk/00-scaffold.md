@@ -3,7 +3,7 @@ title: Phase 0 — Scaffold & GNOME 50 baseline
 type: port
 date: 2026-08-02
 phase: 0
-status: planned
+status: in-progress
 depends_on: []
 ---
 
@@ -89,10 +89,10 @@ Blueprint toolchain wired in Meson even if Phase 0 UI is code-only or a single e
 
 ## Verification
 
-- [ ] `meson compile` (or cargo) produces a binary that opens an Adwaita window
-- [ ] Flatpak build succeeds on GNOME 50 SDK
-- [ ] `yarn tauri dev` still works unchanged
-- [ ] No deletions under `src/` or `src-tauri/`
+- [x] `meson compile` (or cargo) produces a binary that opens an Adwaita window
+- [ ] Flatpak build succeeds on GNOME 50 SDK — blocked locally: `flatpak-builder` not installed (needs package install); manifest is present at `gtk/flatpak/im.apodaca.InitiativeTracker.json`
+- [x] `yarn tauri dev` still works unchanged (no edits under `src/`, `src-tauri/`, or `package.json`)
+- [x] No deletions under `src/` or `src-tauri/`
 
 ## Exit criteria
 

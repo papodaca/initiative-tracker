@@ -12,6 +12,14 @@ dist
 dist-ssr
 *.local
 
+# GTK / Meson / Cargo
+gtk/build/
+gtk/flatpak-build/
+gtk/.flatpak-builder/
+gtk/target/
+gtk/cargo-home/
+**/cargo-target/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

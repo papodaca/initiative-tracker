@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Initiative Tracker
+Comment=Track initiative for tabletop RPG campaigns
+Exec=initiative-tracker-gtk
+Icon=im.apodaca.InitiativeTracker
+Terminal=false
+Type=Application
+Categories=GTK;Game;
+Keywords=initiative;rpg;dnd;combat;tracker;
+StartupNotify=true

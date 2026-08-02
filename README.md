@@ -13,6 +13,15 @@ Track initiative for your campaigns on a secondary monitor.
 
 ## Development
 
+This repository currently ships **two frontends** in parallel:
+
+| Frontend | Stack | How to run |
+|---|---|---|
+| **Tauri** (production today) | Tauri 2 + Svelte | `yarn tauri dev` |
+| **GTK** (port in progress) | GTK4 + libadwaita (GNOME 50) | see [`gtk/README.md`](gtk/README.md) |
+
+### Tauri / Svelte
+
 1. Install [asdf](https://asdf-vm.com/).
 2. Install tools
 ```bash
@@ -26,3 +35,14 @@ yarn install
 ```bash
 yarn tauri dev
 ```
+
+### GTK4 / libadwaita
+
+```bash
+cd gtk
+meson setup build
+meson compile -C build
+./build/src/initiative-tracker-gtk
+```
+
+Full Flatpak and packaging notes: [`gtk/README.md`](gtk/README.md).

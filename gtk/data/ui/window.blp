@@ -1,0 +1,16 @@
+using Gtk 4.0;
+using Adw 1;
+
+/* Phase 0 stub — Blueprint toolchain is wired in Meson.
+ * The running window is still built in code (window.rs).
+ * Later phases will load this template via GResource. */
+template $InitiativeTrackerWindow : Adw.ApplicationWindow {
+  title: _("Initiative Tracker: Console");
+  default-width: 540;
+  default-height: 600;
+
+  Adw.ToolbarView {
+    [top]
+    Adw.HeaderBar {}
+  }
+}

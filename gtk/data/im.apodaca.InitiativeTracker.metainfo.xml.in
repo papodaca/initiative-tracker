@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>im.apodaca.InitiativeTracker</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+
+  <name>Initiative Tracker</name>
+  <summary>Track initiative for RPG campaigns</summary>
+  <description>
+    <p>
+      Track initiative, health, and scene images for tabletop RPG campaigns.
+      This is the GTK4 / libadwaita frontend; the Tauri app remains available
+      during the port.
+    </p>
+  </description>
+
+  <developer id="im.apodaca">
+    <name>papodaca</name>
+  </developer>
+
+  <url type="homepage">https://github.com/papodaca/initiative-tracker</url>
+  <url type="bugtracker">https://github.com/papodaca/initiative-tracker/issues</url>
+  <url type="vcs-browser">https://github.com/papodaca/initiative-tracker</url>
+
+  <launchable type="desktop-id">im.apodaca.InitiativeTracker.desktop</launchable>
+  <content_rating type="oars-1.1"/>
+
+  <branding>
+    <color type="primary" scheme_preference="light">#3584e4</color>
+    <color type="primary" scheme_preference="dark">#78aeed</color>
+  </branding>
+
+  <releases>
+    <release version="0.1.0" date="2026-08-02">
+      <description translate="no">
+        <p>Initial GTK4 / libadwaita scaffold targeting GNOME 50.</p>
+      </description>
+    </release>
+  </releases>
+</component>
