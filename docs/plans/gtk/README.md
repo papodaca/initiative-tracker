@@ -95,7 +95,7 @@ Shared domain logic lives under `gtk/` (or a small `crates/core` if extraction p
 | 2 | [02-console-shell.md](./02-console-shell.md) | Console chrome, campaigns, settings | Navigation/settings parity ✅ |
 | 3 | [03-combat-loop.md](./03-combat-loop.md) | Combatants + combat actions | Full combat without Presenter ✅ |
 | 4 | [04-presenter.md](./04-presenter.md) | Presenter window + live sync | Dual-window parity ✅ |
-| 5 | [05-scene-images.md](./05-scene-images.md) | Images + crossfade | Media parity |
+| 5 | [05-scene-images.md](./05-scene-images.md) | Images + crossfade | Media parity ✅ |
 | 6 | [06-polish-packaging.md](./06-polish-packaging.md) | A11y, Flatpak, docs; **still keep Tauri** | Ship-ready GTK app in parallel |
 
 Cutover / Tauri removal is **out of this plan set** and requires a separate plan after Phase 6.

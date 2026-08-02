@@ -1,8 +1,8 @@
 //! Player-facing Presenter window with live `StateStore` sync.
 //!
 //! Parity with Tauri `Presenter.svelte`: hide-on-close, F11/Esc fullscreen,
-//! read-only initiative list with Presenter filters and HP rules. Scene
-//! backgrounds arrive in Phase 5.
+//! read-only initiative list with Presenter filters and HP rules, and dual-layer
+//! scene-image background with ~0.5s crossfade (honors Reduced Motion).
 
 use adw::prelude::*;
 use adw::subclass::prelude::*;
@@ -10,15 +10,21 @@ use gtk::gdk;
 use gtk::gio;
 use gtk::glib;
 use std::cell::{Cell, OnceCell, RefCell};
+use std::path::Path;
 use std::rc::Rc;
 
+use crate::combat_ui::load_console_styles;
 use crate::domain::{
-    kind_label, presenter_hp_display, visible_combatants, AppState, Campaign, Combatant, HpDisplay,
+    active_scene_image, kind_label, presenter_hp_display, visible_combatants, AppState, Campaign,
+    Combatant, HpDisplay,
 };
 use crate::persistence::StateStore;
 use crate::theme::apply_theme;
 
 type BoolCallback = Rc<dyn Fn(bool)>;
+
+const CROSSFADE_MS: u32 = 500;
+const REDUCED_MOTION_MS: u32 = 0;
 
 mod imp {
     use super::*;
@@ -28,7 +34,13 @@ mod imp {
         pub store: OnceCell<StateStore>,
         pub list: OnceCell<gtk::ListBox>,
         pub scale_box: OnceCell<gtk::Box>,
+        pub header: OnceCell<adw::HeaderBar>,
         pub scale_provider: OnceCell<gtk::CssProvider>,
+        pub bg_layer1: OnceCell<gtk::Picture>,
+        pub bg_layer2: OnceCell<gtk::Picture>,
+        pub active_layer: Cell<u8>,
+        pub last_bg_path: RefCell<String>,
+        pub bg_animation: RefCell<Option<adw::TimedAnimation>>,
         pub on_fullscreen: RefCell<Option<BoolCallback>>,
         pub on_visibility: RefCell<Option<BoolCallback>>,
         pub subscribed: Cell<bool>,
@@ -40,6 +52,7 @@ mod imp {
             f.debug_struct("PresenterWindow")
                 .field("subscribed", &self.subscribed)
                 .field("syncing_fullscreen", &self.syncing_fullscreen)
+                .field("active_layer", &self.active_layer)
                 .finish_non_exhaustive()
         }
     }
@@ -60,6 +73,8 @@ mod imp {
             obj.set_default_width(800);
             obj.set_default_height(600);
             obj.set_hide_on_close(true);
+            obj.add_css_class("presenter-window");
+            load_console_styles();
 
             let provider = gtk::CssProvider::new();
             if let Some(display) = gdk::Display::default() {
@@ -71,24 +86,49 @@ mod imp {
             }
             let _ = self.scale_provider.set(provider);
 
+            let layer1 = make_bg_layer();
+            layer1.set_opacity(1.0);
+            let layer2 = make_bg_layer();
+            layer2.set_opacity(0.0);
+
+            let bg_overlay = gtk::Overlay::builder()
+                .hexpand(true)
+                .vexpand(true)
+                .css_classes(["presenter-bg"])
+                .build();
+            bg_overlay.set_child(Some(&layer1));
+            bg_overlay.add_overlay(&layer2);
+            layer2.set_halign(gtk::Align::Fill);
+            layer2.set_valign(gtk::Align::Fill);
+
+            // Left-aligned like Tauri Presenter (`#app { max-width: fit-content; margin: 5px }`).
             let scale_box = gtk::Box::builder()
                 .orientation(gtk::Orientation::Vertical)
                 .valign(gtk::Align::Start)
-                .halign(gtk::Align::Fill)
+                .halign(gtk::Align::Start)
                 .hexpand(true)
                 .vexpand(true)
+                .margin_top(5)
+                .margin_bottom(5)
+                .margin_start(5)
+                .margin_end(5)
                 .css_classes(["presenter-scale"])
                 .build();
 
             let clamp = adw::Clamp::builder()
                 .maximum_size(720)
                 .tightening_threshold(480)
-                .hexpand(true)
+                .halign(gtk::Align::Start)
+                .hexpand(false)
                 .build();
 
+            // Separate opaque rows (not Adwaita boxed-list): matches Tauri
+            // PlayerList `.list-group.initiative-list .entity-row` cards.
             let list = gtk::ListBox::builder()
                 .selection_mode(gtk::SelectionMode::None)
-                .css_classes(["boxed-list", "combatant-list", "presenter-list"])
+                .halign(gtk::Align::Start)
+                .hexpand(false)
+                .css_classes(["combatant-list", "presenter-list"])
                 .build();
 
             clamp.set_child(Some(&list));
@@ -96,14 +136,36 @@ mod imp {
 
             let scrolled = gtk::ScrolledWindow::builder()
                 .hscrollbar_policy(gtk::PolicyType::Never)
+                .hexpand(true)
                 .vexpand(true)
+                .halign(gtk::Align::Fill)
+                .valign(gtk::Align::Fill)
+                .css_classes(["presenter-scrolled"])
                 .child(&scale_box)
                 .build();
 
-            obj.set_content(Some(&scrolled));
+            let root = gtk::Overlay::builder()
+                .hexpand(true)
+                .vexpand(true)
+                .css_classes(["presenter-root"])
+                .build();
+            root.set_child(Some(&bg_overlay));
+            root.add_overlay(&scrolled);
+
+            // CSD title bar so the window is draggable when windowed; hidden in
+            // fullscreen so the scene image stays edge-to-edge for players.
+            let header = adw::HeaderBar::new();
+            let toolbar = adw::ToolbarView::new();
+            toolbar.add_top_bar(&header);
+            toolbar.set_content(Some(&root));
+            obj.set_content(Some(&toolbar));
 
             let _ = self.list.set(list);
             let _ = self.scale_box.set(scale_box);
+            let _ = self.header.set(header);
+            let _ = self.bg_layer1.set(layer1);
+            let _ = self.bg_layer2.set(layer2);
+            self.active_layer.set(1);
 
             let key = gtk::EventControllerKey::new();
             key.connect_key_pressed(glib::clone!(
@@ -131,6 +193,7 @@ mod imp {
                     #[weak]
                     obj,
                     move |_, _| {
+                        obj.sync_header_for_fullscreen();
                         obj.emit_fullscreen_callback();
                     }
                 ),
@@ -220,8 +283,15 @@ impl PresenterWindow {
             self.unfullscreen();
         }
         imp.syncing_fullscreen.set(false);
+        self.sync_header_for_fullscreen();
         if let Some(cb) = imp.on_fullscreen.borrow().as_ref() {
             cb(self.is_fullscreen());
+        }
+    }
+
+    fn sync_header_for_fullscreen(&self) {
+        if let Some(header) = self.imp().header.get() {
+            header.set_visible(!self.is_fullscreen());
         }
     }
 
@@ -249,6 +319,7 @@ impl PresenterWindow {
         apply_theme(state.theme);
         self.apply_display_size(state.display_size);
         self.rebind_list(&state);
+        self.update_background(active_path_from_state(&state));
     }
 
     fn apply_display_size(&self, size: f64) {
@@ -286,6 +357,139 @@ impl PresenterWindow {
             list.append(&build_presenter_row(combatant, campaign));
         }
     }
+
+    /// Dual-layer crossfade matching Tauri `preloadAndTransition` (~0.5s).
+    fn update_background(&self, path: Option<&str>) {
+        let imp = self.imp();
+        let Some(layer1) = imp.bg_layer1.get() else {
+            return;
+        };
+        let Some(layer2) = imp.bg_layer2.get() else {
+            return;
+        };
+
+        let path = path.unwrap_or("");
+        if path == imp.last_bg_path.borrow().as_str() {
+            return;
+        }
+        *imp.last_bg_path.borrow_mut() = path.to_string();
+
+        if let Some(prev) = imp.bg_animation.borrow_mut().take() {
+            prev.skip();
+        }
+
+        if path.is_empty() {
+            clear_layer(layer1);
+            clear_layer(layer2);
+            layer1.set_opacity(0.0);
+            layer2.set_opacity(0.0);
+            return;
+        }
+
+        let active = imp.active_layer.get();
+        let (incoming, outgoing) = if active == 1 {
+            (layer2, layer1)
+        } else {
+            (layer1, layer2)
+        };
+
+        set_layer_path(incoming, path);
+        incoming.set_opacity(0.0);
+        // Keep outgoing visible until the fade completes.
+
+        let duration = crossfade_duration_ms();
+        let next_active = if active == 1 { 2 } else { 1 };
+        imp.active_layer.set(next_active);
+
+        if duration == 0 {
+            incoming.set_opacity(1.0);
+            outgoing.set_opacity(0.0);
+            return;
+        }
+
+        let target = adw::CallbackAnimationTarget::new(glib::clone!(
+            #[weak]
+            incoming,
+            #[weak]
+            outgoing,
+            move |value| {
+                incoming.set_opacity(value);
+                outgoing.set_opacity(1.0 - value);
+            }
+        ));
+
+        let anim = adw::TimedAnimation::new(self, 0.0, 1.0, duration, target);
+        anim.set_easing(adw::Easing::EaseInOut);
+        anim.play();
+        *imp.bg_animation.borrow_mut() = Some(anim);
+    }
+}
+
+fn make_bg_layer() -> gtk::Picture {
+    let picture = gtk::Picture::builder()
+        .content_fit(gtk::ContentFit::Cover)
+        .can_shrink(true)
+        .hexpand(true)
+        .vexpand(true)
+        .halign(gtk::Align::Fill)
+        .valign(gtk::Align::Fill)
+        .css_classes(["presenter-bg-layer"])
+        .build();
+    picture.set_can_target(false);
+    picture.set_opacity(0.0);
+    picture
+}
+
+fn set_layer_path(picture: &gtk::Picture, path: &str) {
+    let file = Path::new(path);
+    if !file.is_file() {
+        eprintln!("initiative-tracker: scene image missing or unreadable: {path}");
+        clear_layer(picture);
+        return;
+    }
+    picture.set_filename(Some(path));
+}
+
+fn clear_layer(picture: &gtk::Picture) {
+    picture.set_filename(None::<&str>);
+    picture.set_paintable(None::<&gdk::Paintable>);
+}
+
+fn active_path_from_state(state: &AppState) -> Option<&str> {
+    let campaign = state.current()?;
+    let image = active_scene_image(campaign)?;
+    if image.path.is_empty() {
+        None
+    } else {
+        Some(image.path.as_str())
+    }
+}
+
+fn crossfade_duration_ms() -> u32 {
+    if prefers_reduced_motion() {
+        REDUCED_MOTION_MS
+    } else {
+        CROSSFADE_MS
+    }
+}
+
+/// Honor GTK animation toggle and GNOME 50 `reduced-motion` a11y setting.
+fn prefers_reduced_motion() -> bool {
+    if gtk::Settings::default().is_some_and(|s| !s.is_gtk_enable_animations()) {
+        return true;
+    }
+
+    let Some(source) = gio::SettingsSchemaSource::default() else {
+        return false;
+    };
+    if source
+        .lookup("org.gnome.desktop.a11y.interface", true)
+        .is_none()
+    {
+        return false;
+    }
+    let settings = gio::Settings::new("org.gnome.desktop.a11y.interface");
+    settings.string("reduced-motion") == "reduce"
 }
 
 fn build_presenter_row(player: &Combatant, campaign: &Campaign) -> gtk::ListBoxRow {

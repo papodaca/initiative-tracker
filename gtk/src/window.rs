@@ -10,6 +10,7 @@ use crate::combat_ui::{
 };
 use crate::dialogs::{present_add_campaign, present_settings};
 use crate::domain::to_title_case;
+use crate::media_ui::SceneImageList;
 use crate::persistence::StateStore;
 use crate::presenter_window::PresenterWindow;
 use crate::theme::apply_theme;
@@ -32,6 +33,7 @@ mod imp {
         pub open_btn: gtk::Button,
         pub fullscreen_btn: gtk::Button,
         pub close_btn: gtk::Button,
+        pub image_list: SceneImageList,
     }
 
     impl std::fmt::Debug for PresenterControls {
@@ -221,16 +223,20 @@ fn build_presenter_section(window: &InitiativeTrackerWindow) -> gtk::Expander {
     row.append(&fullscreen_btn);
     row.append(&close_btn);
 
-    let stub = gtk::Label::builder()
-        .label("Scene images arrive in Phase 5. Drag the Presenter to the player display, then Fullscreen.")
+    let hint = gtk::Label::builder()
+        .label("Drag the Presenter to the player display, then Fullscreen.")
         .wrap(true)
         .xalign(0.0)
         .css_classes(["dim-label"])
         .build();
 
+    // Store is bound in refresh_from_store once StateStore loads.
+    let image_list = SceneImageList::build();
+
     content.append(&open_btn);
     content.append(&row);
-    content.append(&stub);
+    content.append(&image_list.container);
+    content.append(&hint);
     expander.set_child(Some(&content));
 
     open_btn.connect_clicked(glib::clone!(
@@ -259,6 +265,7 @@ fn build_presenter_section(window: &InitiativeTrackerWindow) -> gtk::Expander {
         open_btn,
         fullscreen_btn,
         close_btn,
+        image_list,
     });
     window.sync_presenter_controls();
 
@@ -460,8 +467,9 @@ impl InitiativeTrackerWindow {
 
         self.ensure_combat_ui();
 
+        let camp = state.current().cloned().unwrap_or_default();
+
         if let Some(combat) = imp.combat.borrow().as_ref() {
-            let camp = state.current().cloned().unwrap_or_default();
             if let Some(guard) = imp.ui_guard.get() {
                 combat.visibility.refresh(
                     camp.initiative_visible,
@@ -471,6 +479,11 @@ impl InitiativeTrackerWindow {
                 );
             }
             combat.list.refresh(&camp.players, store);
+        }
+
+        if let Some(controls) = imp.presenter_controls.get() {
+            controls.image_list.bind_store(store.clone());
+            controls.image_list.refresh(&camp.images);
         }
     }
 

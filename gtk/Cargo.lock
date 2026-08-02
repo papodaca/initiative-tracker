@@ -452,6 +452,7 @@ name = "initiative-tracker-gtk"
 version = "0.1.0"
 dependencies = [
  "directories",
+ "gdk-pixbuf",
  "gtk4",
  "libadwaita",
  "percent-encoding",

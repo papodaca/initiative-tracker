@@ -3,9 +3,9 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 use crate::domain::{
-    clear_monsters, long_rest, next_turn, previous_turn, resolve_combatant_name, sort_by_initiative,
-    start_initiative, end_initiative, update_player_active, AppState, Campaign, Combatant,
-    CombatantKind,
+    activate_scene_image, clear_monsters, end_initiative, long_rest, next_turn, previous_turn,
+    resolve_combatant_name, sort_by_initiative, start_initiative, update_player_active, AppState,
+    Campaign, Combatant, CombatantKind, SceneImage,
 };
 use crate::persistence::{
     default_state_path, import_tauri_state, load_json, save_json, tauri_candidate_paths,
@@ -290,6 +290,45 @@ impl StateStore {
             camp.auto_hide_inactive = update.auto_hide_inactive;
         })
     }
+
+    /// Append scene images from filesystem paths (`active = false`, name = file stem).
+    pub fn add_images(&self, paths: &[std::path::PathBuf]) -> Result<usize, PersistError> {
+        self.with_mut(|state| {
+            let campaign = state.current_mut();
+            let mut added = 0;
+            for path in paths {
+                let name = SceneImage::name_from_path(path);
+                let path_str = path.to_string_lossy().into_owned();
+                campaign.images.push(SceneImage::new(name, path_str));
+                added += 1;
+            }
+            added
+        })
+    }
+
+    /// Mark one image active and clear others (parity with Tauri `makeActive`).
+    pub fn set_active_image(&self, id: &str) -> Result<bool, PersistError> {
+        self.with_mut(|state| activate_scene_image(&mut state.current_mut().images, id))
+    }
+
+    /// Inline rename for a scene image.
+    pub fn rename_image(&self, id: &str, name: String) -> Result<bool, PersistError> {
+        self.with_mut(|state| {
+            let Some(image) = state
+                .current_mut()
+                .images
+                .iter_mut()
+                .find(|i| i.id == id)
+            else {
+                return false;
+            };
+            let name = name.trim();
+            if !name.is_empty() {
+                image.name = name.to_string();
+            }
+            true
+        })
+    }
 }
 
 /// Field patch for inline combatant edits.
@@ -523,6 +562,43 @@ mod tests {
         assert_eq!(store.current_campaign().current_player, Some(1));
         store.end_initiative().unwrap();
         assert!(store.current_campaign().current_player.is_none());
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn add_activate_rename_images_persist() {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!("it-store-images-{nanos}.json"));
+        save_json(&path, &AppState::default()).unwrap();
+        let store = StateStore::new(path.clone());
+        store.load().unwrap();
+
+        let img_a = std::env::temp_dir().join(format!("it-a-{nanos}.png"));
+        let img_b = std::env::temp_dir().join(format!("it-b-{nanos}.jpg"));
+        assert_eq!(
+            store
+                .add_images(&[img_a.clone(), img_b.clone()])
+                .unwrap(),
+            2
+        );
+        let camp = store.current_campaign();
+        assert_eq!(camp.images.len(), 2);
+        assert!(!camp.images[0].active);
+        assert_eq!(camp.images[0].name, SceneImage::name_from_path(&img_a));
+        assert_eq!(camp.images[0].path, img_a.to_string_lossy());
+
+        let id = camp.images[1].id.clone();
+        assert!(store.set_active_image(&id).unwrap());
+        assert!(store.rename_image(&id, "Dungeon".into()).unwrap());
+
+        let reloaded = load_json(&path).unwrap().current().unwrap().clone();
+        assert_eq!(reloaded.images.len(), 2);
+        assert!(!reloaded.images[0].active);
+        assert!(reloaded.images[1].active);
+        assert_eq!(reloaded.images[1].name, "Dungeon");
         let _ = std::fs::remove_file(&path);
     }
 }

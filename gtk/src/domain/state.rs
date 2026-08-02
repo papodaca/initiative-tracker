@@ -92,6 +92,31 @@ impl SceneImage {
             active: false,
         }
     }
+
+    /// Default display name = file stem (parity with Tauri `ImageList`).
+    pub fn name_from_path(path: &std::path::Path) -> String {
+        path.file_stem()
+            .and_then(|s| s.to_str())
+            .filter(|s| !s.is_empty())
+            .unwrap_or("Image")
+            .to_string()
+    }
+}
+
+/// First image marked `active`, if any.
+pub fn active_scene_image(campaign: &Campaign) -> Option<&SceneImage> {
+    campaign.images.iter().find(|i| i.active)
+}
+
+/// Set exactly one image active by id (clears others). Returns false if id missing.
+pub fn activate_scene_image(images: &mut [SceneImage], id: &str) -> bool {
+    if !images.iter().any(|i| i.id == id) {
+        return false;
+    }
+    for image in images.iter_mut() {
+        image.active = image.id == id;
+    }
+    true
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -469,5 +494,34 @@ mod tests {
         assert_eq!(kind_label(CombatantKind::Player), "PC");
         assert_eq!(kind_label(CombatantKind::Npc), "NPC");
         assert_eq!(kind_label(CombatantKind::Monster), "Monster");
+    }
+
+    #[test]
+    fn scene_image_name_from_path_uses_stem() {
+        assert_eq!(
+            SceneImage::name_from_path(std::path::Path::new("/tmp/Forest.png")),
+            "Forest"
+        );
+        assert_eq!(
+            SceneImage::name_from_path(std::path::Path::new("noext")),
+            "noext"
+        );
+    }
+
+    #[test]
+    fn activate_scene_image_sets_single_active() {
+        let mut images = vec![
+            SceneImage::new("a", "/a.png"),
+            SceneImage::new("b", "/b.png"),
+        ];
+        let id = images[1].id.clone();
+        assert!(activate_scene_image(&mut images, &id));
+        assert!(!images[0].active);
+        assert!(images[1].active);
+        assert_eq!(active_scene_image(&Campaign {
+            images: images.clone(),
+            ..Campaign::default()
+        }).unwrap().id, id);
+        assert!(!activate_scene_image(&mut images, "missing"));
     }
 }

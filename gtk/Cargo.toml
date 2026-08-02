@@ -9,6 +9,7 @@ license = "MIT"
 [dependencies]
 adw = { package = "libadwaita", version = "0.9.2", features = ["v1_9"] }
 directories = "6"
+gdk-pixbuf = "0.22"
 gtk = { package = "gtk4", version = "0.11.4", features = ["gnome_50"] }
 percent-encoding = "2"
 serde = { version = "1", features = ["derive"] }

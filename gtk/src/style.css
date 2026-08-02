@@ -25,9 +25,35 @@
   font-family: monospace;
 }
 
-/* Presenter read-only list (parity with PlayerList `.initiative-list`). */
-.presenter-list .combatant-row {
+/* Presenter combatant list — parity with Tauri PlayerList initiative rows:
+   separate opaque surface cards + row opacity 0.8 over scene images.
+   Do not use Adwaita boxed-list: dark @card_bg_color is only 8% white. */
+list.presenter-list {
+  margin: 10px;
+  background: transparent;
+  box-shadow: none;
+  border-radius: 0;
+}
+
+list.presenter-list > row.combatant-row {
+  margin-bottom: 4px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid @borders;
+  background-color: @view_bg_color;
+  color: @view_fg_color;
   opacity: 0.8;
+}
+
+list.presenter-list > row.combatant-row:last-child {
+  margin-bottom: 0;
+}
+
+list.presenter-list > row.combatant-row.active {
+  /* Inactive rows stay at 0.8; active pops for quick scanning. */
+  opacity: 1;
+  border: 2px solid @accent_bg_color;
+  background-color: color-mix(in srgb, @accent_bg_color 22%, @view_bg_color);
 }
 
 .presenter-init-active {
@@ -35,4 +61,35 @@
   color: @accent_fg_color;
   border-radius: 6px;
   padding: 2px 4px;
+}
+
+/* Presenter scene background — transparent chrome so dual Picture layers show. */
+.presenter-root,
+.presenter-bg,
+.presenter-scrolled,
+.presenter-scrolled > viewport,
+.presenter-scrolled > viewport > overshoot.top,
+.presenter-scrolled > viewport > overshoot.bottom,
+.presenter-scale {
+  background: transparent;
+}
+
+.presenter-bg-layer {
+  background: transparent;
+}
+
+/* Console scene image list (parity with ImageList.svelte). */
+.scene-image-row.active {
+  background-color: alpha(@accent_bg_color, 0.18);
+}
+
+.scene-image-thumb {
+  min-width: 120px;
+  max-width: 120px;
+  min-height: 90px;
+  max-height: 90px;
+}
+
+.scene-image-name {
+  font-weight: 500;
 }

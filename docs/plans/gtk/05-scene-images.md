@@ -3,7 +3,7 @@ title: Phase 5 — Scene images & presenter crossfade
 type: port
 date: 2026-08-02
 phase: 5
-status: planned
+status: done
 depends_on: [4]
 ---
 
@@ -75,13 +75,23 @@ Query `GtkSettings` / Accessibility reduced-motion (GNOME 50 setting). If reduce
 
 ## Verification
 
-- [ ] Add multiple images; thumbnails show
-- [ ] Activating one updates Presenter background
-- [ ] Switching active images crossfades (or instant with reduced motion)
-- [ ] Rename persists across restart
-- [ ] Missing file does not break Presenter list
-- [ ] Tauri image flow still works with its own store
+- [x] Add multiple images; thumbnails show
+- [x] Activating one updates Presenter background
+- [x] Switching active images crossfades (or instant with reduced motion)
+- [x] Rename persists across restart
+- [x] Missing file does not break Presenter list
+- [x] Tauri image flow still works with its own store
 
 ## Exit criteria
 
 Media parity complete; GTK app matches Tauri Console+Presenter feature set for images.
+
+## Implementation notes (2026-08-02)
+
+- `gtk/src/media_ui.rs` — Console image list: multi-select `FileDialog`, thumbnail activate, `EditableLabel` rename; store bound after load.
+- `gtk/src/persistence/store.rs` — `add_images` / `set_active_image` / `rename_image` (+ tests).
+- `gtk/src/domain/state.rs` — `SceneImage::name_from_path`, `active_scene_image`, `activate_scene_image`.
+- `gtk/src/presenter_window.rs` — dual `GtkPicture` layers under an overlay; `AdwTimedAnimation` ~500ms `EaseInOut`; instant when `gtk-enable-animations` is off or GSettings `org.gnome.desktop.a11y.interface reduced-motion=reduce`.
+- Missing paths: log + clear layer / skip thumbnail; no crash.
+- GDK loader gaps (e.g. uncommon `jfif` alias) depend on system loaders; PNG/JPEG/WebP/GIF/SVG covered on typical GNOME runtimes.
+- Flatpak portal bookmark persistence deferred to Phase 6 if needed.
