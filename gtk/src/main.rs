@@ -1,4 +1,6 @@
 mod application;
+mod domain;
+mod persistence;
 mod window;
 
 use application::InitiativeTrackerApplication;

@@ -3,7 +3,7 @@ title: Phase 1 — Domain model & persistence
 type: port
 date: 2026-08-02
 phase: 1
-status: planned
+status: done
 depends_on: [0]
 ---
 
@@ -102,7 +102,8 @@ gtk/src/
 ├── persistence/
 │   ├── mod.rs
 │   ├── json_store.rs     # XDG path, load/save atomic
-│   └── tauri_import.rs   # .settings.dat / legacy JSON best-effort
+│   ├── tauri_import.rs   # .settings.dat / legacy JSON best-effort
+│   └── store.rs          # StateStore façade
 └── ...
 ```
 
@@ -121,15 +122,15 @@ UI phases consume a small façade:
 - `load() -> AppState`
 - `save()`
 - `with_mut(|state| …)` or command methods: `add_combatant`, `next_turn`, …
-- Change notification: `glib::subclass` object with signals, or `Rc<RefCell<AppState>>` + callback list — pick one in implementation; prefer a `gio::ListModel`-friendly design where lists bind later
+- Change notification: `Rc<RefCell<AppState>>` + callback list (`StateStore::subscribe`)
 
 ## Work items
 
-1. Define serde types + defaults + dead normalization on load.
-2. Implement combat helpers parity-tested against Svelte behavior.
-3. Implement JSON store + XDG paths.
-4. Implement Tauri importer (document what cannot be recovered, e.g. opaque asset URLs).
-5. Add `#[cfg(test)]` coverage for sort, turn wrap, long rest, clear monsters, auto-hide filter, HP visibility display rules.
+1. Define serde types + defaults + dead normalization on load. ✅
+2. Implement combat helpers parity-tested against Svelte behavior. ✅
+3. Implement JSON store + XDG paths. ✅
+4. Implement Tauri importer (document what cannot be recovered, e.g. opaque asset URLs). ✅
+5. Add `#[cfg(test)]` coverage for sort, turn wrap, long rest, clear monsters, auto-hide filter, HP visibility display rules. ✅
 
 ## Parallel-frontend constraints
 
@@ -137,12 +138,26 @@ UI phases consume a small façade:
 - GTK owns `state.json`.
 - Optional later: a shared fixture file under `docs/plans/gtk/fixtures/` for manual comparison — not required to wire into Svelte.
 
+## Import limitations (smoke notes)
+
+Recoverable from Tauri `.settings.dat`:
+
+- Theme, `dislaySize` → `display_size`, campaigns list / current, combatants (stringy numbers OK), visibility flags
+- `asset://localhost/%2F…` image URLs → absolute filesystem `path`
+
+Not recoverable (skipped with log):
+
+- Opaque / non-path `fileUrl` values (`blob:`, relative, unknown schemes)
+- Writing back into `.settings.dat` (one-way only)
+
+Smoke: with a real Tauri store at `~/.local/share/im.apodaca.initiative-tracker/.settings.dat`, first GTK launch imports then writes `~/.local/share/im.apodaca.InitiativeTracker/state.json`.
+
 ## Verification
 
-- [ ] Unit tests pass (`cargo test` in `gtk/`)
-- [ ] Fresh install creates default campaign
-- [ ] Import path documented; smoke with a copied Tauri store if available
-- [ ] Tauri app persistence unchanged
+- [x] Unit tests pass (`cargo test` in `gtk/`)
+- [x] Fresh install creates default campaign
+- [x] Import path documented; smoke with a copied Tauri store if available
+- [x] Tauri app persistence unchanged
 
 ## Exit criteria
 

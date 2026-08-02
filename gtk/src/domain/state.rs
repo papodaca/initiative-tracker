@@ -1,0 +1,327 @@
+use serde::{Deserialize, Deserializer, Serialize};
+use uuid::Uuid;
+
+pub const DEFAULT_HEALTH: i32 = 10;
+pub const DEFAULT_CAMPAIGN_NAME: &str = "default";
+pub const APP_ID: &str = "im.apodaca.InitiativeTracker";
+
+/// Combatant kind; missing / unknown values deserialize as [`CombatantKind::Player`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum CombatantKind {
+    #[default]
+    Player,
+    Npc,
+    Monster,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum Theme {
+    #[default]
+    System,
+    Light,
+    Dark,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Combatant {
+    pub id: String,
+    pub name: String,
+    #[serde(default)]
+    pub kind: CombatantKind,
+    #[serde(deserialize_with = "deserialize_i32_lenient")]
+    pub initiative: i32,
+    #[serde(deserialize_with = "deserialize_i32_lenient")]
+    pub health: i32,
+    #[serde(deserialize_with = "deserialize_i32_lenient")]
+    pub max_health: i32,
+    #[serde(default)]
+    pub active: bool,
+    #[serde(default)]
+    pub dead: bool,
+}
+
+impl Combatant {
+    pub fn new(name: impl Into<String>, kind: CombatantKind, initiative: i32, max_health: i32) -> Self {
+        let max_health = if max_health == 0 {
+            DEFAULT_HEALTH
+        } else {
+            max_health
+        };
+        let health = max_health;
+        let mut c = Self {
+            id: Uuid::new_v4().to_string(),
+            name: name.into(),
+            kind,
+            initiative,
+            health,
+            max_health,
+            active: false,
+            dead: false,
+        };
+        c.normalize_dead();
+        c
+    }
+
+    /// Dead is derived from HP (`health <= 0`), matching Svelte.
+    pub fn normalize_dead(&mut self) -> bool {
+        let dead = self.health <= 0;
+        let changed = self.dead != dead;
+        self.dead = dead;
+        changed
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SceneImage {
+    pub id: String,
+    pub name: String,
+    /// Filesystem path (absolute or portable). Opaque Tauri `asset://` URLs are dropped on import.
+    pub path: String,
+    #[serde(default)]
+    pub active: bool,
+}
+
+impl SceneImage {
+    pub fn new(name: impl Into<String>, path: impl Into<String>) -> Self {
+        Self {
+            id: Uuid::new_v4().to_string(),
+            name: name.into(),
+            path: path.into(),
+            active: false,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Campaign {
+    #[serde(default)]
+    pub players: Vec<Combatant>,
+    #[serde(default)]
+    pub images: Vec<SceneImage>,
+    #[serde(default)]
+    pub current_player: Option<usize>,
+    #[serde(default)]
+    pub initiative_visible: bool,
+    #[serde(default)]
+    pub health_visible: bool,
+    #[serde(default)]
+    pub enemy_health_visible: bool,
+    #[serde(default = "default_true")]
+    pub show_initiative_roll: bool,
+    #[serde(default)]
+    pub auto_hide_inactive: bool,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+impl Default for Campaign {
+    fn default() -> Self {
+        Self {
+            players: Vec::new(),
+            images: Vec::new(),
+            current_player: None,
+            initiative_visible: false,
+            health_visible: false,
+            enemy_health_visible: false,
+            show_initiative_roll: true,
+            auto_hide_inactive: false,
+        }
+    }
+}
+
+impl Campaign {
+    /// Seed matching `defaultCampaing()` in `Console.svelte`.
+    pub fn default_seed() -> Self {
+        Self {
+            players: vec![
+                Combatant::new("Player 1", CombatantKind::Player, 3, DEFAULT_HEALTH),
+                Combatant::new("Player 2", CombatantKind::Player, 2, DEFAULT_HEALTH),
+                Combatant::new("Player 3", CombatantKind::Player, 1, DEFAULT_HEALTH),
+            ],
+            images: Vec::new(),
+            current_player: None,
+            initiative_visible: false,
+            health_visible: false,
+            enemy_health_visible: false,
+            show_initiative_roll: true,
+            auto_hide_inactive: false,
+        }
+    }
+
+    pub fn normalize_dead(&mut self) -> bool {
+        self.players.iter_mut().any(|p| p.normalize_dead())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct AppState {
+    #[serde(default)]
+    pub theme: Theme,
+    #[serde(default = "default_display_size")]
+    pub display_size: f64,
+    #[serde(default = "default_campaign_name")]
+    pub current_campaign: String,
+    #[serde(default = "default_campaigns")]
+    pub campaigns: Vec<String>,
+    #[serde(default)]
+    pub campaign_data: std::collections::BTreeMap<String, Campaign>,
+}
+
+fn default_display_size() -> f64 {
+    1.0
+}
+
+fn default_campaign_name() -> String {
+    DEFAULT_CAMPAIGN_NAME.to_string()
+}
+
+fn default_campaigns() -> Vec<String> {
+    vec![DEFAULT_CAMPAIGN_NAME.to_string()]
+}
+
+impl Default for AppState {
+    fn default() -> Self {
+        let mut campaign_data = std::collections::BTreeMap::new();
+        campaign_data.insert(DEFAULT_CAMPAIGN_NAME.to_string(), Campaign::default_seed());
+        Self {
+            theme: Theme::System,
+            display_size: 1.0,
+            current_campaign: DEFAULT_CAMPAIGN_NAME.to_string(),
+            campaigns: vec![DEFAULT_CAMPAIGN_NAME.to_string()],
+            campaign_data,
+        }
+    }
+}
+
+impl AppState {
+    /// Ensure campaigns list / current / data are consistent and normalize dead flags.
+    pub fn normalize(&mut self) -> bool {
+        let mut changed = false;
+
+        if self.campaigns.is_empty() {
+            self.campaigns.push(DEFAULT_CAMPAIGN_NAME.to_string());
+            changed = true;
+        }
+
+        if self.current_campaign.is_empty()
+            || !self.campaigns.contains(&self.current_campaign)
+        {
+            self.current_campaign = self.campaigns[0].clone();
+            changed = true;
+        }
+
+        for name in self.campaigns.clone() {
+            if !self.campaign_data.contains_key(&name) {
+                self.campaign_data
+                    .insert(name, Campaign::default_seed());
+                changed = true;
+            }
+        }
+
+        for campaign in self.campaign_data.values_mut() {
+            if campaign.normalize_dead() {
+                changed = true;
+            }
+        }
+
+        changed
+    }
+
+    pub fn current_mut(&mut self) -> &mut Campaign {
+        let name = self.current_campaign.clone();
+        self.campaign_data
+            .entry(name)
+            .or_insert_with(Campaign::default_seed)
+    }
+
+    pub fn current(&self) -> Option<&Campaign> {
+        self.campaign_data.get(&self.current_campaign)
+    }
+}
+
+/// Accept JSON numbers or numeric strings (Tauri / InPlaceEdit sometimes stores strings).
+fn deserialize_i32_lenient<'de, D>(deserializer: D) -> Result<i32, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    use serde::de::{self, Visitor};
+    use std::fmt;
+
+    struct I32Visitor;
+
+    impl<'de> Visitor<'de> for I32Visitor {
+        type Value = i32;
+
+        fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            f.write_str("an integer or numeric string")
+        }
+
+        fn visit_i64<E: de::Error>(self, v: i64) -> Result<i32, E> {
+            i32::try_from(v).map_err(E::custom)
+        }
+
+        fn visit_u64<E: de::Error>(self, v: u64) -> Result<i32, E> {
+            i32::try_from(v).map_err(E::custom)
+        }
+
+        fn visit_f64<E: de::Error>(self, v: f64) -> Result<i32, E> {
+            Ok(v as i32)
+        }
+
+        fn visit_str<E: de::Error>(self, v: &str) -> Result<i32, E> {
+            v.trim()
+                .parse::<f64>()
+                .map(|n| n as i32)
+                .map_err(E::custom)
+        }
+    }
+
+    deserializer.deserialize_any(I32Visitor)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn dead_derived_from_health() {
+        let mut c = Combatant::new("X", CombatantKind::Player, 1, 10);
+        assert!(!c.dead);
+        c.health = 0;
+        assert!(c.normalize_dead());
+        assert!(c.dead);
+        c.health = 5;
+        assert!(c.normalize_dead());
+        assert!(!c.dead);
+    }
+
+    #[test]
+    fn default_state_has_seed_campaign() {
+        let state = AppState::default();
+        assert_eq!(state.current_campaign, "default");
+        let camp = state.current().unwrap();
+        assert_eq!(camp.players.len(), 3);
+        assert!(camp.images.is_empty());
+        assert!(camp.show_initiative_roll);
+        assert!(!camp.auto_hide_inactive);
+    }
+
+    #[test]
+    fn lenient_i32_from_string() {
+        let json = r#"{
+            "id": "a",
+            "name": "P",
+            "initiative": "5",
+            "health": "0",
+            "max_health": "10"
+        }"#;
+        let c: Combatant = serde_json::from_str(json).unwrap();
+        assert_eq!(c.initiative, 5);
+        assert_eq!(c.health, 0);
+        assert_eq!(c.max_health, 10);
+    }
+}
