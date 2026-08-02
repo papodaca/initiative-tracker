@@ -11,14 +11,18 @@ Track initiative for your campaigns on a secondary monitor.
 ![App Screenshot](.github/screenshot.png)
 
 
+## Frontends
+
+This repository ships **two frontends** in parallel during the GTK port:
+
+| Frontend | Stack | Status | How to run |
+|---|---|---|---|
+| **Tauri** | Tauri 2 + Svelte | Production path today | `yarn tauri dev` / `yarn tauri build` |
+| **GTK** | GTK4 + libadwaita (GNOME 50) | Parallel preview (feature parity) | see [`gtk/README.md`](gtk/README.md) |
+
+Cutover / removal of Tauri is **not** part of the current plan set; see [`docs/plans/gtk/`](docs/plans/gtk/).
+
 ## Development
-
-This repository currently ships **two frontends** in parallel:
-
-| Frontend | Stack | How to run |
-|---|---|---|
-| **Tauri** (production today) | Tauri 2 + Svelte | `yarn tauri dev` |
-| **GTK** (port in progress) | GTK4 + libadwaita (GNOME 50) | see [`gtk/README.md`](gtk/README.md) |
 
 ### Tauri / Svelte
 
@@ -35,6 +39,10 @@ yarn install
 ```bash
 yarn tauri dev
 ```
+5. Production build
+```bash
+yarn tauri build
+```
 
 ### GTK4 / libadwaita
 
@@ -45,4 +53,4 @@ meson compile -C build
 ./build/src/initiative-tracker-gtk
 ```
 
-Full Flatpak and packaging notes: [`gtk/README.md`](gtk/README.md).
+Full Flatpak packaging, sandbox notes, and shortcuts: [`gtk/README.md`](gtk/README.md).

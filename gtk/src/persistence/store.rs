@@ -8,8 +8,8 @@ use crate::domain::{
     Campaign, Combatant, CombatantKind, SceneImage,
 };
 use crate::persistence::{
-    default_state_path, import_tauri_state, load_json, save_json, tauri_candidate_paths,
-    ImportReport, PersistError,
+    default_images_dir, default_state_path, import_tauri_state, load_json, save_json,
+    tauri_candidate_paths, ImportReport, PersistError,
 };
 
 type Listener = Rc<dyn Fn()>;
@@ -291,16 +291,27 @@ impl StateStore {
         })
     }
 
-    /// Append scene images from filesystem paths (`active = false`, name = file stem).
+    /// Append scene images, copying each file into the app images directory.
+    ///
+    /// Copies keep thumbnails/Presenter backgrounds readable under a tight
+    /// Flatpak sandbox after the document portal grant for the picker ends.
     pub fn add_images(&self, paths: &[std::path::PathBuf]) -> Result<usize, PersistError> {
+        let images_dir = default_images_dir()?;
+        std::fs::create_dir_all(&images_dir)?;
+
+        let mut prepared: Vec<(String, String)> = Vec::with_capacity(paths.len());
+        for path in paths {
+            let name = SceneImage::name_from_path(path);
+            let dest = unique_image_dest(&images_dir, path);
+            std::fs::copy(path, &dest)?;
+            prepared.push((name, dest.to_string_lossy().into_owned()));
+        }
+
         self.with_mut(|state| {
             let campaign = state.current_mut();
-            let mut added = 0;
-            for path in paths {
-                let name = SceneImage::name_from_path(path);
-                let path_str = path.to_string_lossy().into_owned();
+            let added = prepared.len();
+            for (name, path_str) in prepared {
                 campaign.images.push(SceneImage::new(name, path_str));
-                added += 1;
             }
             added
         })
@@ -359,13 +370,23 @@ fn try_import_tauri() -> Option<(AppState, ImportReport)> {
             Ok(pair) => return Some(pair),
             Err(e) => {
                 eprintln!(
-                    "initiative-tracker: failed to import {:?}: {e}",
-                    candidate
+                    "initiative-tracker: Tauri import failed for {}: {e}",
+                    candidate.display()
                 );
             }
         }
     }
     None
+}
+
+/// Destination under the app images dir: `<uuid>.<ext>` (ext from source).
+fn unique_image_dest(images_dir: &std::path::Path, src: &std::path::Path) -> PathBuf {
+    let ext = src
+        .extension()
+        .and_then(|e| e.to_str())
+        .filter(|e| !e.is_empty())
+        .unwrap_or("img");
+    images_dir.join(format!("{}.{ext}", uuid::Uuid::new_v4()))
 }
 
 #[cfg(test)]
@@ -578,6 +599,8 @@ mod tests {
 
         let img_a = std::env::temp_dir().join(format!("it-a-{nanos}.png"));
         let img_b = std::env::temp_dir().join(format!("it-b-{nanos}.jpg"));
+        std::fs::write(&img_a, b"png-bytes").unwrap();
+        std::fs::write(&img_b, b"jpg-bytes").unwrap();
         assert_eq!(
             store
                 .add_images(&[img_a.clone(), img_b.clone()])
@@ -588,7 +611,14 @@ mod tests {
         assert_eq!(camp.images.len(), 2);
         assert!(!camp.images[0].active);
         assert_eq!(camp.images[0].name, SceneImage::name_from_path(&img_a));
-        assert_eq!(camp.images[0].path, img_a.to_string_lossy());
+        let images_dir = default_images_dir().unwrap();
+        let stored_a = PathBuf::from(&camp.images[0].path);
+        let stored_b = PathBuf::from(&camp.images[1].path);
+        assert!(stored_a.starts_with(&images_dir), "{}", stored_a.display());
+        assert!(stored_b.starts_with(&images_dir), "{}", stored_b.display());
+        assert!(stored_a.is_file());
+        assert!(stored_b.is_file());
+        assert_ne!(stored_a, img_a);
 
         let id = camp.images[1].id.clone();
         assert!(store.set_active_image(&id).unwrap());
@@ -600,5 +630,9 @@ mod tests {
         assert!(reloaded.images[1].active);
         assert_eq!(reloaded.images[1].name, "Dungeon");
         let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_file(&img_a);
+        let _ = std::fs::remove_file(&img_b);
+        let _ = std::fs::remove_file(&stored_a);
+        let _ = std::fs::remove_file(&stored_b);
     }
 }

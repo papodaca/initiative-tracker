@@ -1,0 +1,61 @@
+name: GTK
+
+on:
+  push:
+    paths:
+      - 'gtk/**'
+      - 'docs/plans/gtk/**'
+      - '.github/workflows/gtk.yml'
+  pull_request:
+    paths:
+      - 'gtk/**'
+      - 'docs/plans/gtk/**'
+      - '.github/workflows/gtk.yml'
+  workflow_dispatch:
+
+jobs:
+  validate-metadata:
+    name: Validate desktop & AppStream
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install validators
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y appstream desktop-file-utils
+
+      - name: Validate desktop entry
+        run: |
+          cp gtk/data/im.apodaca.InitiativeTracker.desktop.in \
+            /tmp/im.apodaca.InitiativeTracker.desktop
+          desktop-file-validate /tmp/im.apodaca.InitiativeTracker.desktop
+
+      - name: Validate AppStream metainfo
+        run: |
+          appstreamcli validate --no-net --explain \
+            gtk/data/im.apodaca.InitiativeTracker.metainfo.xml.in
+
+  flatpak:
+    name: Flatpak (GNOME 50)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install flatpak-builder
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder
+          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak install -y --user flathub \
+            org.gnome.Platform//50 \
+            org.gnome.Sdk//50 \
+            org.freedesktop.Sdk.Extension.rust-stable//25.08
+
+      - name: Build Flatpak
+        working-directory: gtk
+        run: |
+          flatpak-builder --user --force-clean --repo=repo flatpak-build \
+            flatpak/im.apodaca.InitiativeTracker.json

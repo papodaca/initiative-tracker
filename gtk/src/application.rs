@@ -21,6 +21,8 @@ mod imp {
         fn constructed(&self) {
             self.parent_constructed();
             let obj = self.obj();
+            // App switcher / taskbar icon when running from a meson install or Flatpak.
+            gtk::Window::set_default_icon_name("im.apodaca.InitiativeTracker");
             obj.setup_gactions();
             obj.set_accels_for_action("app.quit", &["<Control>q"]);
         }
@@ -34,6 +36,16 @@ mod imp {
                 window.upcast()
             });
             window.present();
+        }
+
+        fn shutdown(&self) {
+            // Ctrl+Q / app.quit may skip per-window close_request; persist first.
+            for window in self.obj().windows() {
+                if let Ok(console) = window.downcast::<InitiativeTrackerWindow>() {
+                    console.save_now();
+                }
+            }
+            self.parent_shutdown();
         }
     }
 

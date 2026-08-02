@@ -49,9 +49,11 @@ impl SceneImageList {
 
         let add_btn = gtk::Button::builder()
             .label("Add Images")
+            .tooltip_text("Add scene images (copied into app data)")
             .css_classes(["success"])
             .halign(gtk::Align::Start)
             .build();
+        add_btn.update_property(&[gtk::accessible::Property::Label("Add scene images")]);
 
         container.append(&list);
         container.append(&add_btn);

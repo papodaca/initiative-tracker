@@ -73,6 +73,7 @@ mod imp {
             load_console_styles();
 
             obj.set_title(Some("Initiative Tracker: Console"));
+            obj.set_icon_name(Some("im.apodaca.InitiativeTracker"));
             obj.set_default_width(540);
             obj.set_default_height(720);
 
@@ -85,11 +86,14 @@ mod imp {
             dropdown.set_hexpand(true);
             dropdown.set_halign(gtk::Align::Fill);
             dropdown.set_size_request(160, -1);
+            dropdown.set_tooltip_text(Some("Current campaign"));
+            dropdown.update_property(&[gtk::accessible::Property::Label("Current campaign")]);
             header.set_title_widget(Some(&dropdown));
             let _ = self.campaign_dropdown.set(dropdown);
 
             let add_btn = gtk::Button::from_icon_name("list-add-symbolic");
             add_btn.set_tooltip_text(Some("Add campaign"));
+            add_btn.update_property(&[gtk::accessible::Property::Label("Add campaign")]);
             add_btn.add_css_class("flat");
             header.pack_start(&add_btn);
 
@@ -165,6 +169,7 @@ mod imp {
                 );
             }
 
+            obj.install_shortcuts();
             obj.load_store();
         }
     }
@@ -172,11 +177,7 @@ mod imp {
     impl WidgetImpl for InitiativeTrackerWindow {}
     impl WindowImpl for InitiativeTrackerWindow {
         fn close_request(&self) -> glib::Propagation {
-            if let Some(store) = self.store.get() {
-                if let Err(e) = store.save() {
-                    eprintln!("initiative-tracker: save on shutdown failed: {e}");
-                }
-            }
+            self.obj().save_now();
             if let Some(presenter) = self.presenter.borrow_mut().take() {
                 presenter.set_hide_on_close(false);
                 presenter.close();
@@ -203,6 +204,7 @@ fn build_presenter_section(window: &InitiativeTrackerWindow) -> gtk::Expander {
 
     let open_btn = gtk::Button::builder()
         .label("Open Presenter Window")
+        .tooltip_text("Open Presenter (Ctrl+Shift+P)")
         .css_classes(["suggested-action"])
         .build();
 
@@ -213,10 +215,12 @@ fn build_presenter_section(window: &InitiativeTrackerWindow) -> gtk::Expander {
         .build();
 
     let fullscreen_btn = gtk::Button::with_label("Fullscreen");
+    fullscreen_btn.set_tooltip_text(Some("Toggle Presenter fullscreen (F11 in Presenter)"));
     fullscreen_btn.add_css_class("pill");
     fullscreen_btn.set_sensitive(false);
 
     let close_btn = gtk::Button::with_label("Close");
+    close_btn.set_tooltip_text(Some("Hide Presenter window"));
     close_btn.add_css_class("destructive-action");
     close_btn.set_sensitive(false);
 
@@ -286,8 +290,78 @@ impl InitiativeTrackerWindow {
             .build()
     }
 
+    /// Persist state immediately (window close and app shutdown).
+    pub fn save_now(&self) {
+        if let Some(store) = self.imp().store.get() {
+            if let Err(e) = store.save() {
+                eprintln!("initiative-tracker: save on shutdown failed: {e}");
+            }
+        }
+    }
+
     fn store(&self) -> Option<&StateStore> {
         self.imp().store.get()
+    }
+
+    /// Combat and Presenter shortcuts via `GtkShortcutController` (managed scope).
+    fn install_shortcuts(&self) {
+        let controller = gtk::ShortcutController::new();
+        controller.set_scope(gtk::ShortcutScope::Managed);
+
+        let add = |controller: &gtk::ShortcutController,
+                   accel: &str,
+                   cb: Box<dyn Fn(&InitiativeTrackerWindow) -> glib::Propagation>| {
+            let Some(trigger) = gtk::ShortcutTrigger::parse_string(accel) else {
+                eprintln!("initiative-tracker: invalid shortcut accel: {accel}");
+                return;
+            };
+            let window = self.clone();
+            let action = gtk::CallbackAction::new(move |_, _| cb(&window));
+            controller.add_shortcut(gtk::Shortcut::new(Some(trigger), Some(action)));
+        };
+
+        add(
+            &controller,
+            "<Control>n",
+            Box::new(|window| {
+                if let Some(store) = window.store() {
+                    if let Err(e) = store.next_turn() {
+                        eprintln!("initiative-tracker: next turn failed: {e}");
+                    }
+                }
+                glib::Propagation::Stop
+            }),
+        );
+        add(
+            &controller,
+            "<Control><Shift>n",
+            Box::new(|window| {
+                if let Some(store) = window.store() {
+                    if let Err(e) = store.previous_turn() {
+                        eprintln!("initiative-tracker: previous turn failed: {e}");
+                    }
+                }
+                glib::Propagation::Stop
+            }),
+        );
+        add(
+            &controller,
+            "<Control><Shift>p",
+            Box::new(|window| {
+                window.open_presenter();
+                glib::Propagation::Stop
+            }),
+        );
+        add(
+            &controller,
+            "<Control><Shift>f",
+            Box::new(|window| {
+                window.toggle_presenter_fullscreen();
+                glib::Propagation::Stop
+            }),
+        );
+
+        self.add_controller(controller);
     }
 
     fn on_add_campaign(&self) {

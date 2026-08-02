@@ -3,7 +3,7 @@ title: Phase 0 — Scaffold & GNOME 50 baseline
 type: port
 date: 2026-08-02
 phase: 0
-status: in-progress
+status: done
 depends_on: []
 ---
 

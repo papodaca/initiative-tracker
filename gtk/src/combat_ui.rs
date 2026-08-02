@@ -318,6 +318,7 @@ fn build_combatant_row(player: &Combatant, store: &StateStore) -> gtk::ListBoxRo
     init.add_css_class("combatant-init");
     init.set_width_chars(3);
     init.set_alignment(0.5);
+    init.update_property(&[gtk::accessible::Property::Label("Initiative")]);
 
     let info = gtk::Box::builder()
         .orientation(gtk::Orientation::Vertical)
@@ -329,6 +330,7 @@ fn build_combatant_row(player: &Combatant, store: &StateStore) -> gtk::ListBoxRo
     name.add_css_class("combatant-name");
     name.set_alignment(0.0);
     name.set_hexpand(true);
+    name.update_property(&[gtk::accessible::Property::Label("Combatant name")]);
 
     let meta_text = if player.dead {
         format!("{} • Dead", kind_label(player.kind))
@@ -353,16 +355,19 @@ fn build_combatant_row(player: &Combatant, store: &StateStore) -> gtk::ListBoxRo
     let health = gtk::EditableLabel::new(&player.health.to_string());
     health.set_width_chars(3);
     health.set_alignment(1.0);
+    health.update_property(&[gtk::accessible::Property::Label("Current HP")]);
     let slash = gtk::Label::new(Some("/"));
     let max_health = gtk::EditableLabel::new(&player.max_health.to_string());
     max_health.set_width_chars(3);
     max_health.set_alignment(0.0);
+    max_health.update_property(&[gtk::accessible::Property::Label("Max HP")]);
     hp_box.append(&health);
     hp_box.append(&slash);
     hp_box.append(&max_health);
 
     let delete = gtk::Button::from_icon_name("user-trash-symbolic");
     delete.set_tooltip_text(Some("Delete combatant"));
+    delete.update_property(&[gtk::accessible::Property::Label("Delete combatant")]);
     delete.add_css_class("flat");
     delete.add_css_class("destructive-action");
 
@@ -465,8 +470,10 @@ impl CombatFooter {
             .build();
 
         let prev = gtk::Button::from_icon_name("media-skip-backward-symbolic");
-        prev.set_tooltip_text(Some("Previous turn"));
+        prev.set_tooltip_text(Some("Previous turn (Ctrl+Shift+N)"));
+        prev.update_property(&[gtk::accessible::Property::Label("Previous turn")]);
         let next = gtk::Button::with_label("Next Turn");
+        next.set_tooltip_text(Some("Next turn (Ctrl+N)"));
         next.add_css_class("suggested-action");
         next.set_hexpand(true);
         loop_row.append(&prev);

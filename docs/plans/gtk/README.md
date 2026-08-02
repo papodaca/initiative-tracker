@@ -2,7 +2,7 @@
 title: GTK4 / libadwaita Port — Overview
 type: port
 date: 2026-08-02
-status: planned
+status: done
 target: GNOME 50
 ---
 
@@ -90,15 +90,15 @@ Shared domain logic lives under `gtk/` (or a small `crates/core` if extraction p
 
 | Phase | Doc | Focus | Exit criteria |
 |---|---|---|---|
-| 0 | [00-scaffold.md](./00-scaffold.md) | Meson/Cargo/Flatpak shell on GNOME 50 | Empty Adwaita app runs beside Tauri |
+| 0 | [00-scaffold.md](./00-scaffold.md) | Meson/Cargo/Flatpak shell on GNOME 50 | Empty Adwaita app runs beside Tauri ✅ |
 | 1 | [01-domain-persistence.md](./01-domain-persistence.md) | Domain model, JSON store, Tauri import | State round-trips; tests pass ✅ |
 | 2 | [02-console-shell.md](./02-console-shell.md) | Console chrome, campaigns, settings | Navigation/settings parity ✅ |
 | 3 | [03-combat-loop.md](./03-combat-loop.md) | Combatants + combat actions | Full combat without Presenter ✅ |
 | 4 | [04-presenter.md](./04-presenter.md) | Presenter window + live sync | Dual-window parity ✅ |
 | 5 | [05-scene-images.md](./05-scene-images.md) | Images + crossfade | Media parity ✅ |
-| 6 | [06-polish-packaging.md](./06-polish-packaging.md) | A11y, Flatpak, docs; **still keep Tauri** | Ship-ready GTK app in parallel |
+| 6 | [06-polish-packaging.md](./06-polish-packaging.md) | A11y, Flatpak, docs; **still keep Tauri** | Ship-ready GTK app in parallel ✅ |
 
-Cutover / Tauri removal is **out of this plan set** and requires a separate plan after Phase 6.
+Cutover / Tauri removal is **out of this plan set** and requires a separate plan after Phase 6. All phases **0–6 are done**; Tauri remains the production path until an explicit cutover plan.
 
 ## Decisions (locked)
 

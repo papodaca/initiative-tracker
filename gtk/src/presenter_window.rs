@@ -70,6 +70,7 @@ mod imp {
             let obj = self.obj();
 
             obj.set_title(Some("Initiative Tracker: Presenter"));
+            obj.set_icon_name(Some("im.apodaca.InitiativeTracker"));
             obj.set_default_width(800);
             obj.set_default_height(600);
             obj.set_hide_on_close(true);

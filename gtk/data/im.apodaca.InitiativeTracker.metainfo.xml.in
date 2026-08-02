@@ -5,12 +5,16 @@
   <project_license>MIT</project_license>
 
   <name>Initiative Tracker</name>
-  <summary>Track initiative for RPG campaigns</summary>
+  <summary>Track initiative for RPG campaigns (GTK preview)</summary>
   <description>
     <p>
       Track initiative, health, and scene images for tabletop RPG campaigns.
-      This is the GTK4 / libadwaita frontend; the Tauri app remains available
-      during the port.
+      Open a Presenter window on a secondary display for your players while you
+      run combat from the Console.
+    </p>
+    <p>
+      This is the GTK4 / libadwaita frontend targeting GNOME 50. The Tauri app
+      remains available in parallel during the transition.
     </p>
   </description>
 
@@ -30,10 +34,25 @@
     <color type="primary" scheme_preference="dark">#78aeed</color>
   </branding>
 
+  <screenshots>
+    <screenshot type="default">
+      <image>https://raw.githubusercontent.com/papodaca/initiative-tracker/gtk/gtk/data/screenshots/console.png</image>
+      <caption>Console: campaigns, combatants, and Presenter controls</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/papodaca/initiative-tracker/gtk/gtk/data/screenshots/presenter.png</image>
+      <caption>Presenter: player-facing initiative list and scene image</caption>
+    </screenshot>
+  </screenshots>
+
   <releases>
     <release version="0.1.0" date="2026-08-02">
       <description translate="no">
-        <p>Initial GTK4 / libadwaita scaffold targeting GNOME 50.</p>
+        <p>
+          Initial GTK4 / libadwaita preview with full Console + Presenter feature
+          parity on GNOME 50. Scene images use the document portal and are copied
+          into app data so the Flatpak sandbox stays tight.
+        </p>
       </description>
     </release>
   </releases>

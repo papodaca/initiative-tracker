@@ -22,6 +22,15 @@ pub fn default_state_path() -> Result<PathBuf, PersistError> {
     Ok(base.data_dir().join(APP_ID).join("state.json"))
 }
 
+/// `$XDG_DATA_HOME/im.apodaca.InitiativeTracker/images`
+///
+/// Scene images selected via the file portal are copied here so Flatpak does
+/// not need broad home/Pictures filesystem overrides.
+pub fn default_images_dir() -> Result<PathBuf, PersistError> {
+    let base = BaseDirs::new().ok_or(PersistError::NoDataDir)?;
+    Ok(base.data_dir().join(APP_ID).join("images"))
+}
+
 pub fn load_json(path: &Path) -> Result<AppState, PersistError> {
     let text = fs::read_to_string(path)?;
     let mut state: AppState = serde_json::from_str(&text)?;
@@ -82,5 +91,16 @@ mod tests {
             "unexpected path: {s}"
         );
         assert!(s.ends_with("state.json"));
+    }
+
+    #[test]
+    fn default_images_dir_uses_app_id_segment() {
+        let path = default_images_dir().unwrap();
+        let s = path.to_string_lossy();
+        assert!(
+            s.contains("im.apodaca.InitiativeTracker"),
+            "unexpected path: {s}"
+        );
+        assert!(s.ends_with("images"));
     }
 }
