@@ -3,6 +3,7 @@ mod combat_ui;
 mod dialogs;
 mod domain;
 mod persistence;
+mod presenter_window;
 mod theme;
 mod window;
 

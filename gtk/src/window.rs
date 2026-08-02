@@ -11,21 +11,34 @@ use crate::combat_ui::{
 use crate::dialogs::{present_add_campaign, present_settings};
 use crate::domain::to_title_case;
 use crate::persistence::StateStore;
+use crate::presenter_window::PresenterWindow;
 use crate::theme::apply_theme;
-
-struct CombatWidgets {
-    visibility: VisibilityToggles,
-    list: CombatantList,
-}
-
-impl std::fmt::Debug for CombatWidgets {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("CombatWidgets").finish_non_exhaustive()
-    }
-}
 
 mod imp {
     use super::*;
+
+    pub struct CombatWidgets {
+        pub visibility: VisibilityToggles,
+        pub list: CombatantList,
+    }
+
+    impl std::fmt::Debug for CombatWidgets {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.debug_struct("CombatWidgets").finish_non_exhaustive()
+        }
+    }
+
+    pub struct PresenterControls {
+        pub open_btn: gtk::Button,
+        pub fullscreen_btn: gtk::Button,
+        pub close_btn: gtk::Button,
+    }
+
+    impl std::fmt::Debug for PresenterControls {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.debug_struct("PresenterControls").finish_non_exhaustive()
+        }
+    }
 
     #[derive(Debug, Default)]
     pub struct InitiativeTrackerWindow {
@@ -34,6 +47,10 @@ mod imp {
         pub body: OnceCell<gtk::Box>,
         pub toolbar: OnceCell<adw::ToolbarView>,
         pub combat: RefCell<Option<CombatWidgets>>,
+        pub presenter_controls: OnceCell<PresenterControls>,
+        pub presenter: RefCell<Option<PresenterWindow>>,
+        pub presenter_visible: Cell<bool>,
+        pub presenter_fullscreen: Cell<bool>,
         pub ui_guard: OnceCell<UiGuard>,
         pub updating_dropdown: Cell<bool>,
         pub combat_built: Cell<bool>,
@@ -106,10 +123,8 @@ mod imp {
                 .margin_end(12)
                 .build();
 
-            body.append(&placeholder_expander(
-                "Presenter & Media",
-                "Presenter window and scene images arrive in later phases.",
-            ));
+            let presenter_section = build_presenter_section(&obj);
+            body.append(&presenter_section);
 
             clamp.set_child(Some(&body));
             scrolled.set_child(Some(&clamp));
@@ -160,6 +175,10 @@ mod imp {
                     eprintln!("initiative-tracker: save on shutdown failed: {e}");
                 }
             }
+            if let Some(presenter) = self.presenter.borrow_mut().take() {
+                presenter.set_hide_on_close(false);
+                presenter.close();
+            }
             self.parent_close_request()
         }
     }
@@ -167,20 +186,82 @@ mod imp {
     impl AdwApplicationWindowImpl for InitiativeTrackerWindow {}
 }
 
-fn placeholder_expander(title: &str, body: &str) -> gtk::Expander {
+fn build_presenter_section(window: &InitiativeTrackerWindow) -> gtk::Expander {
     let expander = gtk::Expander::builder()
-        .label(title)
-        .expanded(false)
+        .label("Presenter & Media")
+        .expanded(true)
         .build();
-    let label = gtk::Label::builder()
-        .label(body)
-        .wrap(true)
-        .xalign(0.0)
+
+    let content = gtk::Box::builder()
+        .orientation(gtk::Orientation::Vertical)
+        .spacing(8)
         .margin_top(8)
         .margin_bottom(8)
+        .build();
+
+    let open_btn = gtk::Button::builder()
+        .label("Open Presenter Window")
+        .css_classes(["suggested-action"])
+        .build();
+
+    let row = gtk::Box::builder()
+        .orientation(gtk::Orientation::Horizontal)
+        .spacing(8)
+        .homogeneous(true)
+        .build();
+
+    let fullscreen_btn = gtk::Button::with_label("Fullscreen");
+    fullscreen_btn.add_css_class("pill");
+    fullscreen_btn.set_sensitive(false);
+
+    let close_btn = gtk::Button::with_label("Close");
+    close_btn.add_css_class("destructive-action");
+    close_btn.set_sensitive(false);
+
+    row.append(&fullscreen_btn);
+    row.append(&close_btn);
+
+    let stub = gtk::Label::builder()
+        .label("Scene images arrive in Phase 5. Drag the Presenter to the player display, then Fullscreen.")
+        .wrap(true)
+        .xalign(0.0)
         .css_classes(["dim-label"])
         .build();
-    expander.set_child(Some(&label));
+
+    content.append(&open_btn);
+    content.append(&row);
+    content.append(&stub);
+    expander.set_child(Some(&content));
+
+    open_btn.connect_clicked(glib::clone!(
+        #[weak]
+        window,
+        move |_| {
+            window.open_presenter();
+        }
+    ));
+    fullscreen_btn.connect_clicked(glib::clone!(
+        #[weak]
+        window,
+        move |_| {
+            window.toggle_presenter_fullscreen();
+        }
+    ));
+    close_btn.connect_clicked(glib::clone!(
+        #[weak]
+        window,
+        move |_| {
+            window.close_presenter();
+        }
+    ));
+
+    let _ = window.imp().presenter_controls.set(imp::PresenterControls {
+        open_btn,
+        fullscreen_btn,
+        close_btn,
+    });
+    window.sync_presenter_controls();
+
     expander
 }
 
@@ -238,6 +319,85 @@ impl InitiativeTrackerWindow {
         }
     }
 
+    fn ensure_presenter(&self) -> Option<PresenterWindow> {
+        let imp = self.imp();
+        if let Some(existing) = imp.presenter.borrow().as_ref() {
+            return Some(existing.clone());
+        }
+
+        let store = imp.store.get()?.clone();
+        let app = self.application()?;
+        let presenter = PresenterWindow::new(&app, store);
+
+        let console = self.clone();
+        presenter.set_visibility_callback(move |visible| {
+            console.imp().presenter_visible.set(visible);
+            if !visible {
+                console.imp().presenter_fullscreen.set(false);
+            }
+            console.sync_presenter_controls();
+        });
+
+        let console = self.clone();
+        presenter.set_fullscreen_callback(move |fullscreen| {
+            console.imp().presenter_fullscreen.set(fullscreen);
+            console.sync_presenter_controls();
+        });
+
+        *imp.presenter.borrow_mut() = Some(presenter.clone());
+        Some(presenter)
+    }
+
+    fn open_presenter(&self) {
+        let Some(presenter) = self.ensure_presenter() else {
+            eprintln!("initiative-tracker: cannot open Presenter (store/app missing)");
+            return;
+        };
+        presenter.open_presenter();
+        self.imp().presenter_visible.set(true);
+        self.sync_presenter_controls();
+    }
+
+    fn close_presenter(&self) {
+        if let Some(presenter) = self.imp().presenter.borrow().as_ref() {
+            presenter.close_presenter();
+        }
+        self.imp().presenter_visible.set(false);
+        self.imp().presenter_fullscreen.set(false);
+        self.sync_presenter_controls();
+    }
+
+    fn toggle_presenter_fullscreen(&self) {
+        let Some(presenter) = self.ensure_presenter() else {
+            return;
+        };
+        if !self.imp().presenter_visible.get() {
+            presenter.open_presenter();
+            self.imp().presenter_visible.set(true);
+        }
+        let next = !self.imp().presenter_fullscreen.get();
+        presenter.set_presenter_fullscreen(next);
+        self.imp().presenter_fullscreen.set(next);
+        self.sync_presenter_controls();
+    }
+
+    fn sync_presenter_controls(&self) {
+        let Some(controls) = self.imp().presenter_controls.get() else {
+            return;
+        };
+        let visible = self.imp().presenter_visible.get();
+        let fullscreen = self.imp().presenter_fullscreen.get();
+
+        controls.open_btn.set_sensitive(!visible);
+        controls.close_btn.set_sensitive(visible);
+        controls.fullscreen_btn.set_sensitive(visible);
+        controls.fullscreen_btn.set_label(if fullscreen {
+            "Exit Fullscreen"
+        } else {
+            "Fullscreen"
+        });
+    }
+
     fn ensure_combat_ui(&self) {
         let imp = self.imp();
         if imp.combat_built.get() {
@@ -266,7 +426,7 @@ impl InitiativeTrackerWindow {
         body.append(&list.container);
         toolbar.add_bottom_bar(&footer.action_bar);
 
-        *imp.combat.borrow_mut() = Some(CombatWidgets { visibility, list });
+        *imp.combat.borrow_mut() = Some(imp::CombatWidgets { visibility, list });
         imp.combat_built.set(true);
     }
 

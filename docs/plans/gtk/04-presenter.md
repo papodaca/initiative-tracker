@@ -3,7 +3,7 @@ title: Phase 4 — Presenter window & live sync
 type: port
 date: 2026-08-02
 phase: 4
-status: planned
+status: done
 depends_on: [3]
 ---
 
@@ -90,14 +90,21 @@ Do not promise “open fullscreen on monitor 2.” Document: drag Presenter to t
 
 ## Verification
 
-- [ ] Open Presenter from Console; hide via Close; Open again restores
-- [ ] Next Turn on Console updates Presenter without reopen
-- [ ] Visibility toggles and settings (show roll, auto-hide) reflect immediately
-- [ ] F11 / Esc / Console fullscreen controls agree on state
-- [ ] Display size changes update Presenter scale
-- [ ] Closing Console quits app cleanly (Presenter destroyed with app); no orphan windows
-- [ ] Tauri dual-window flow still works in parallel
+- [x] Open Presenter from Console; hide via Close; Open again restores
+- [x] Next Turn on Console updates Presenter without reopen
+- [x] Visibility toggles and settings (show roll, auto-hide) reflect immediately
+- [x] F11 / Esc / Console fullscreen controls agree on state
+- [x] Display size changes update Presenter scale
+- [x] Closing Console quits app cleanly (Presenter destroyed with app); no orphan windows
+- [x] Tauri dual-window flow still works in parallel
 
 ## Exit criteria
 
 Dual-window combat display parity achieved (minus scene backgrounds).
+
+## Implementation notes (2026-08-02)
+
+- `gtk/src/presenter_window.rs` — hide-on-close `AdwApplicationWindow`, `StateStore` subscribe, read-only list with `visible_combatants` / `presenter_hp_display`, F11/Esc, display-size CSS provider.
+- Console Presenter & Media: Open / Fullscreen / Close with button sensitivity synced from Presenter show/hide + fullscreen notify.
+- Scene backgrounds remain Phase 5; Presenter shows list-only until then.
+- Wayland: drag Presenter to player display, then Fullscreen (documented in stub label).

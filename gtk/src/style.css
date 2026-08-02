@@ -24,3 +24,15 @@
 .combatant-hp {
   font-family: monospace;
 }
+
+/* Presenter read-only list (parity with PlayerList `.initiative-list`). */
+.presenter-list .combatant-row {
+  opacity: 0.8;
+}
+
+.presenter-init-active {
+  background-color: @accent_bg_color;
+  color: @accent_fg_color;
+  border-radius: 6px;
+  padding: 2px 4px;
+}

@@ -1,8 +1,8 @@
 using Gtk 4.0;
 using Adw 1;
 
-/* Phase 3 Console structure (combat loop live in Rust `window.rs` /
- * `combat_ui.rs`). Blueprint documents chrome for a later template-load
+/* Phase 4 Console structure (live UI in Rust `window.rs` / `combat_ui.rs` /
+ * `presenter_window.rs`). Blueprint documents chrome for a later template-load
  * migration. */
 template $InitiativeTrackerWindow : Adw.ApplicationWindow {
   title: _("Initiative Tracker: Console");
@@ -57,6 +57,13 @@ template $InitiativeTrackerWindow : Adw.ApplicationWindow {
 
           Expander {
             label: _("Presenter & Media");
+            expanded: true;
+
+            Box {
+              orientation: vertical;
+              spacing: 8;
+              /* Open Presenter / Fullscreen / Close; images in Phase 5 */
+            }
           }
 
           Expander {
