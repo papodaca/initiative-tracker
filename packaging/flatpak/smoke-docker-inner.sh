@@ -13,9 +13,8 @@ apt-get install -y --no-install-recommends \
 
 git config --global --add safe.directory "${ROOT}" 2>/dev/null || true
 
-# Host compose (flatpak-builder 1.4+). Glycin's nested bwrap is flaky after
-# builder's own sandbox on CI docker, so disable it. Skip builder's compose
-# (appstream-compose: false) and run this same command on the built files.
+# Host compose. libglycin still bwraps for a normal user in this nested Docker
+# even with GLYCIN_DISABLE_SANDBOX; root is how the pre-build probe succeeds.
 run_appstream_compose() {
   local files_root=$1
   GLYCIN_DISABLE_SANDBOX=1 appstreamcli compose \
@@ -68,16 +67,17 @@ flatpak install -y --user flathub \
 cd "${ROOT}/packaging/flatpak"
 flatpak-builder --user --force-clean --disable-rofiles-fuse --repo=repo build-dir \
   im.apodaca.InitiativeTracker.json
+EOF
+
+# Compose as root. Glycin still launches bwrap for uid builder inside this
+# nested Docker (GLYCIN_DISABLE_SANDBOX is ignored by libglycin); root skips it.
 files_root="${ROOT}/packaging/flatpak/build-dir/files"
-GLYCIN_DISABLE_SANDBOX=1 appstreamcli compose \
-  --prefix=/ \
-  --origin=im.apodaca.InitiativeTracker \
-  --result-root="${files_root}" \
-  --data-dir="${files_root}/share/app-info/xmls" \
-  --icons-dir="${files_root}/share/app-info/icons/flatpak" \
-  --print-report=full \
-  --components=im.apodaca.InitiativeTracker,im.apodaca.InitiativeTracker.desktop \
-  "${files_root}"
+run_appstream_compose "${files_root}"
+chown -R builder:builder "${files_root}/share/app-info"
+
+sudo -u builder env HOME=/home/builder ROOT="${ROOT}" VERSION="${VERSION}" \
+  bash -euo pipefail <<'EOF'
+cd "${ROOT}/packaging/flatpak"
 flatpak build-export repo build-dir
 flatpak build-bundle repo \
   "im.apodaca.InitiativeTracker-${VERSION}.flatpak" \
