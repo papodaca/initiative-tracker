@@ -13,6 +13,21 @@ apt-get install -y --no-install-recommends \
 
 git config --global --add safe.directory "${ROOT}" 2>/dev/null || true
 
+# flatpak-builder 1.4+ runs appstreamcli compose on the host. Fail fast with a
+# full hint report before downloading the SDK and compiling.
+compose_probe=$(mktemp -d)
+bash "${ROOT}/packaging/install-data.sh" / "${compose_probe}/files"
+appstreamcli compose \
+  --prefix=/ \
+  --origin=im.apodaca.InitiativeTracker \
+  --result-root="${compose_probe}/files" \
+  --data-dir="${compose_probe}/files/share/app-info/xmls" \
+  --icons-dir="${compose_probe}/files/share/app-info/icons/flatpak" \
+  --print-report=full \
+  --components=im.apodaca.InitiativeTracker,im.apodaca.InitiativeTracker.desktop \
+  "${compose_probe}/files"
+rm -rf "${compose_probe}"
+
 flatpak_version() {
   local tag
   tag=$(git -C "${ROOT}" describe --tags --exact-match HEAD 2>/dev/null || true)

@@ -244,7 +244,7 @@ install -Dm755 "${CARGO_TARGET_DIR}/release/initiative-tracker-gtk" \
 bash "${REPO_ROOT}/packaging/install-data.sh" /usr "${APPDIR}"
 
 DESKTOP_FILE="${APPDIR}/usr/share/applications/im.apodaca.InitiativeTracker.desktop"
-ICON_FILE="${APPDIR}/usr/share/icons/hicolor/scalable/apps/im.apodaca.InitiativeTracker.svg"
+ICON_FILE="${APPDIR}/usr/share/icons/hicolor/512x512/apps/im.apodaca.InitiativeTracker.png"
 if [[ ! -f ${DESKTOP_FILE} ]]; then
   echo "Missing desktop file after install: ${DESKTOP_FILE}" >&2
   exit 1

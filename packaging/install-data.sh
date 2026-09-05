@@ -20,9 +20,7 @@ for size in 32x32 128x128 512x512; do
     "${SHARE}/icons/hicolor/${size}/apps/${APP_ID}.png"
 done
 
-install -Dm644 \
-  "${ROOT}/data/icons/hicolor/scalable/apps/${APP_ID}.svg" \
-  "${SHARE}/icons/hicolor/scalable/apps/${APP_ID}.svg"
+# Skip the raster-in-SVG "scalable" icon: compose treats a failed SVG decode as fatal.
 install -Dm644 \
   "${ROOT}/data/icons/hicolor/symbolic/apps/${APP_ID}-symbolic.svg" \
   "${SHARE}/icons/hicolor/symbolic/apps/${APP_ID}-symbolic.svg"
