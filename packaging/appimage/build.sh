@@ -7,8 +7,8 @@
 #
 # Produces: InitiativeTracker-$VERSION-$ARCH.AppImage in this directory
 # (ARCH is uname -m: x86_64 or aarch64).
-# Requires Ubuntu 26.04-class deps: meson, ninja, rustc, cargo,
-# blueprint-compiler, GTK4/libadwaita, curl, file, patchelf, python3.
+# Requires Ubuntu 26.04-class deps: rustc, cargo, pkg-config,
+# GTK4/libadwaita, curl, file, patchelf, python3.
 #
 # AppImages built on Ubuntu 26.04 target that glibc floor (GTK 4.22 / libadwaita 1.9).
 set -euo pipefail
@@ -236,20 +236,21 @@ mkdir -p "${APPDIR}"
 
 fetch_tooling
 
-meson setup "${BUILDDIR}" "${REPO_ROOT}" \
-  --prefix=/usr \
-  --buildtype=release
-meson compile -C "${BUILDDIR}"
-DESTDIR="${APPDIR}" meson install -C "${BUILDDIR}"
+export CARGO_HOME="${BUILDDIR}/cargo-home"
+export CARGO_TARGET_DIR="${BUILDDIR}/cargo-target"
+cargo build --manifest-path "${REPO_ROOT}/Cargo.toml" --release --locked
+install -Dm755 "${CARGO_TARGET_DIR}/release/initiative-tracker-gtk" \
+  "${APPDIR}/usr/bin/initiative-tracker-gtk"
+bash "${REPO_ROOT}/packaging/install-data.sh" /usr "${APPDIR}"
 
 DESKTOP_FILE="${APPDIR}/usr/share/applications/im.apodaca.InitiativeTracker.desktop"
 ICON_FILE="${APPDIR}/usr/share/icons/hicolor/scalable/apps/im.apodaca.InitiativeTracker.svg"
 if [[ ! -f ${DESKTOP_FILE} ]]; then
-  echo "Missing desktop file after meson install: ${DESKTOP_FILE}" >&2
+  echo "Missing desktop file after install: ${DESKTOP_FILE}" >&2
   exit 1
 fi
 if [[ ! -f ${ICON_FILE} ]]; then
-  echo "Missing app icon after meson install: ${ICON_FILE}" >&2
+  echo "Missing app icon after install: ${ICON_FILE}" >&2
   exit 1
 fi
 

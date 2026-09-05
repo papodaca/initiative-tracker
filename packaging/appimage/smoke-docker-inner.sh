@@ -9,15 +9,13 @@ apt-get update
 apt-get install -y --no-install-recommends \
   ca-certificates curl \
   build-essential \
-  meson ninja-build pkg-config git \
+  pkg-config git \
   rustc cargo \
-  blueprint-compiler \
-  python3 python3-gi \
+  python3 \
   libgtk-4-dev libadwaita-1-dev \
   gobject-introspection \
   gir1.2-gtk-4.0 gir1.2-adw-1 \
   libglib2.0-bin librsvg2-common \
-  desktop-file-utils appstream \
   file patchelf \
   dpkg-dev findutils \
   sudo

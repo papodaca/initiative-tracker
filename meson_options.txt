@@ -1,7 +1,0 @@
-option(
-  'profile',
-  type: 'combo',
-  choices: ['default', 'development'],
-  value: 'development',
-  description: 'Build profile (development installs a Devel app id suffix in later phases)',
-)

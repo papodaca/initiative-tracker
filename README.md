@@ -9,29 +9,22 @@ Binary: `initiative-tracker-gtk`
 
 Targets GNOME 50 (GTK 4.22+, libadwaita 1.9+).
 
-## Native build (Meson + Cargo)
+## Native build
 
-Distro packages (names vary): Rust toolchain, GTK 4.22+, libadwaita 1.9+, Meson, Ninja, Blueprint compiler, `desktop-file-utils`, `appstreamcli` (optional validation).
-
-```bash
-meson setup build
-meson compile -C build
-./build/src/initiative-tracker-gtk
-```
-
-Local install:
-
-```bash
-meson setup build --prefix=$HOME/.local
-meson install -C build
-initiative-tracker-gtk
-```
-
-Cargo-only (same binary, skips desktop/metainfo install):
+Distro packages (names vary): Rust toolchain, GTK 4.22+, libadwaita 1.9+, pkg-config. Optional: `desktop-file-utils`, `appstreamcli` to validate metadata.
 
 ```bash
 cargo test
 cargo run
+```
+
+Local install (binary plus desktop file, metainfo, and icons):
+
+```bash
+cargo build --release
+install -Dm755 target/release/initiative-tracker-gtk \
+  "$HOME/.local/bin/initiative-tracker-gtk"
+./packaging/install-data.sh "$HOME/.local"
 ```
 
 ## Flatpak (GNOME 50)

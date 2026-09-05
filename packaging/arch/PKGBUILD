@@ -18,12 +18,9 @@ sha256sums=()
 options=('!lto' '!debug')
 
 makedepends=(
-  meson
-  ninja
   cargo
   pkgconf
   git
-  blueprint-compiler
   gcc
   desktop-file-utils
   appstream
@@ -53,21 +50,24 @@ pkgver() {
 
 build() {
   cd "${_repo_root}"
-  rm -rf build-pkg
-  meson setup build-pkg --prefix=/usr --buildtype=plain
-  meson compile -C build-pkg
+  export CARGO_HOME="${_repo_root}/build-pkg/cargo-home"
+  export CARGO_TARGET_DIR="${_repo_root}/build-pkg/cargo-target"
+  cargo build --release --locked
 }
 
 check() {
   cd "${_repo_root}"
-  meson test -C build-pkg --print-errorlogs
   export CARGO_HOME="${_repo_root}/build-pkg/cargo-home"
-  cargo test --manifest-path "${_repo_root}/Cargo.toml" \
-    --target-dir "${_repo_root}/build-pkg/cargo-target" \
-    --release
+  export CARGO_TARGET_DIR="${_repo_root}/build-pkg/cargo-target"
+  cargo test --release --locked
+  desktop-file-validate data/im.apodaca.InitiativeTracker.desktop
+  appstreamcli validate --no-net --explain \
+    data/im.apodaca.InitiativeTracker.metainfo.xml
 }
 
 package() {
   cd "${_repo_root}"
-  DESTDIR="${pkgdir}" meson install -C build-pkg
+  install -Dm755 build-pkg/cargo-target/release/initiative-tracker-gtk \
+    "${pkgdir}/usr/bin/initiative-tracker-gtk"
+  bash "${_repo_root}/packaging/install-data.sh" /usr "${pkgdir}"
 }
