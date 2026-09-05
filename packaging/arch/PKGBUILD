@@ -1,0 +1,73 @@
+# Local Arch package. From this directory:
+#   makepkg -si
+# Builds the git checkout two directories up (repo root).
+
+pkgname=initiative-tracker-gtk
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='GTK4/libadwaita initiative tracker for tabletop RPG campaigns'
+url='https://github.com/papodaca/initiative-tracker'
+license=('MIT')
+arch=('x86_64' 'aarch64')
+
+_repo_root=$(cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/../.." && pwd)
+
+source=()
+sha256sums=()
+
+options=('!lto' '!debug')
+
+makedepends=(
+  meson
+  ninja
+  cargo
+  pkgconf
+  git
+  blueprint-compiler
+  gcc
+  desktop-file-utils
+  appstream
+)
+
+depends=(
+  gtk4
+  libadwaita
+  glib2
+  gdk-pixbuf2
+  gcc-libs
+  hicolor-icon-theme
+)
+
+pkgver() {
+  cd "${_repo_root}"
+  local tag
+  tag=$(git describe --tags --exact-match HEAD 2>/dev/null || true)
+  if [[ ${tag} =~ ^v([0-9][^[:space:]]*)$ ]]; then
+    printf '%s' "${BASH_REMATCH[1]}"
+  else
+    printf '0.1.0.r%s.%s' \
+      "$(git rev-list --count HEAD)" \
+      "$(git rev-parse --short HEAD)"
+  fi
+}
+
+build() {
+  cd "${_repo_root}"
+  rm -rf build-pkg
+  meson setup build-pkg --prefix=/usr --buildtype=plain
+  meson compile -C build-pkg
+}
+
+check() {
+  cd "${_repo_root}"
+  meson test -C build-pkg --print-errorlogs
+  export CARGO_HOME="${_repo_root}/build-pkg/cargo-home"
+  cargo test --manifest-path "${_repo_root}/Cargo.toml" \
+    --target-dir "${_repo_root}/build-pkg/cargo-target" \
+    --release
+}
+
+package() {
+  cd "${_repo_root}"
+  DESTDIR="${pkgdir}" meson install -C build-pkg
+}

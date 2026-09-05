@@ -56,12 +56,13 @@
       "builddir": true,
       "buildsystem": "meson",
       "config-opts": [
-        "-Dprofile=default"
+        "-Dprofile=default",
+        "--buildtype=release"
       ],
       "sources": [
         {
           "type": "dir",
-          "path": ".."
+          "path": "../.."
         }
       ]
     }

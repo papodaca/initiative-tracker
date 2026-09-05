@@ -1,9 +1,7 @@
 build
+build-pkg
 flatpak-build
 .flatpak-builder
-flatpak/.flatpak-builder
-flatpak/build-dir
-flatpak/repo
 target
 cargo-home
 **/cargo-target

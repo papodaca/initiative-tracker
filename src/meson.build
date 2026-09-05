@@ -28,12 +28,12 @@ cargo_home = meson.project_build_root() / 'cargo-home'
 cargo_target = meson.project_build_root() / 'cargo-target'
 manifest = meson.project_source_root() / 'Cargo.toml'
 
-if get_option('buildtype') == 'release'
-  rust_target = 'release'
-  cargo_mode = '--release'
-else
+if get_option('buildtype') == 'debug'
   rust_target = 'debug'
   cargo_mode = ''
+else
+  rust_target = 'release'
+  cargo_mode = '--release'
 endif
 
 cargo_script = '''

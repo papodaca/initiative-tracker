@@ -48,12 +48,11 @@ flatpak install --user flathub org.gnome.Sdk//50 org.gnome.Platform//50 \
   org.freedesktop.Sdk.Extension.rust-stable//25.08
 ```
 
-Build and install from the `gtk/` directory:
+Build and install from the repository root:
 
 ```bash
-cd gtk
-flatpak-builder --user --install --force-clean flatpak-build \
-  flatpak/im.apodaca.InitiativeTracker.json
+flatpak-builder --user --install --force-clean packaging/flatpak/build-dir \
+  packaging/flatpak/im.apodaca.InitiativeTracker.json
 flatpak run im.apodaca.InitiativeTracker
 ```
 
