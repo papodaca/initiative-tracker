@@ -13,19 +13,25 @@ apt-get install -y --no-install-recommends \
 
 git config --global --add safe.directory "${ROOT}" 2>/dev/null || true
 
-# flatpak-builder 1.4+ runs appstreamcli compose on the host. Fail fast with a
-# full hint report before downloading the SDK and compiling.
+# Host compose (flatpak-builder 1.4+). Glycin's nested bwrap is flaky after
+# builder's own sandbox on CI docker, so disable it. Skip builder's compose
+# (appstream-compose: false) and run this same command on the built files.
+run_appstream_compose() {
+  local files_root=$1
+  GLYCIN_DISABLE_SANDBOX=1 appstreamcli compose \
+    --prefix=/ \
+    --origin=im.apodaca.InitiativeTracker \
+    --result-root="${files_root}" \
+    --data-dir="${files_root}/share/app-info/xmls" \
+    --icons-dir="${files_root}/share/app-info/icons/flatpak" \
+    --print-report=full \
+    --components=im.apodaca.InitiativeTracker,im.apodaca.InitiativeTracker.desktop \
+    "${files_root}"
+}
+
 compose_probe=$(mktemp -d)
 bash "${ROOT}/packaging/install-data.sh" / "${compose_probe}/files"
-appstreamcli compose \
-  --prefix=/ \
-  --origin=im.apodaca.InitiativeTracker \
-  --result-root="${compose_probe}/files" \
-  --data-dir="${compose_probe}/files/share/app-info/xmls" \
-  --icons-dir="${compose_probe}/files/share/app-info/icons/flatpak" \
-  --print-report=full \
-  --components=im.apodaca.InitiativeTracker,im.apodaca.InitiativeTracker.desktop \
-  "${compose_probe}/files"
+run_appstream_compose "${compose_probe}/files"
 rm -rf "${compose_probe}"
 
 flatpak_version() {
@@ -62,6 +68,17 @@ flatpak install -y --user flathub \
 cd "${ROOT}/packaging/flatpak"
 flatpak-builder --user --force-clean --disable-rofiles-fuse --repo=repo build-dir \
   im.apodaca.InitiativeTracker.json
+files_root="${ROOT}/packaging/flatpak/build-dir/files"
+GLYCIN_DISABLE_SANDBOX=1 appstreamcli compose \
+  --prefix=/ \
+  --origin=im.apodaca.InitiativeTracker \
+  --result-root="${files_root}" \
+  --data-dir="${files_root}/share/app-info/xmls" \
+  --icons-dir="${files_root}/share/app-info/icons/flatpak" \
+  --print-report=full \
+  --components=im.apodaca.InitiativeTracker,im.apodaca.InitiativeTracker.desktop \
+  "${files_root}"
+flatpak build-export repo build-dir
 flatpak build-bundle repo \
   "im.apodaca.InitiativeTracker-${VERSION}.flatpak" \
   im.apodaca.InitiativeTracker
