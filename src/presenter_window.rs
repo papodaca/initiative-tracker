@@ -2,7 +2,8 @@
 //!
 //! Parity with Tauri `Presenter.svelte`: hide-on-close, F11/Esc fullscreen,
 //! read-only initiative list with Presenter filters and HP rules, and dual-layer
-//! scene-image background with ~0.5s crossfade (honors Reduced Motion).
+//! scene background with ~0.5s crossfade (honors Reduced Motion). Images and
+//! looping videos share the same cover layers.
 
 use adw::prelude::*;
 use adw::subclass::prelude::*;
@@ -15,8 +16,8 @@ use std::rc::Rc;
 
 use crate::combat_ui::load_console_styles;
 use crate::domain::{
-    active_scene_image, kind_label, presenter_hp_display, visible_combatants, AppState, Campaign,
-    Combatant, HpDisplay,
+    active_scene_image, is_video_path, kind_label, presenter_hp_display, visible_combatants,
+    AppState, Campaign, Combatant, HpDisplay,
 };
 use crate::persistence::StateStore;
 use crate::theme::apply_theme;
@@ -204,6 +205,7 @@ mod imp {
                 #[weak]
                 obj,
                 move |_| {
+                    obj.resume_background_media();
                     obj.emit_visibility_callback(true);
                 }
             ));
@@ -211,6 +213,7 @@ mod imp {
                 #[weak]
                 obj,
                 move |_| {
+                    obj.pause_background_media();
                     obj.emit_visibility_callback(false);
                 }
             ));
@@ -320,7 +323,37 @@ impl PresenterWindow {
         apply_theme(state.theme);
         self.apply_display_size(state.display_size);
         self.rebind_list(&state);
-        self.update_background(active_path_from_state(&state));
+        let muted = state
+            .current()
+            .map(|c| c.mute_scene_video)
+            .unwrap_or(false);
+        self.update_background(active_path_from_state(&state), muted);
+    }
+
+    fn pause_background_media(&self) {
+        let imp = self.imp();
+        if let Some(layer) = imp.bg_layer1.get() {
+            pause_layer_media(layer);
+        }
+        if let Some(layer) = imp.bg_layer2.get() {
+            pause_layer_media(layer);
+        }
+    }
+
+    fn resume_background_media(&self) {
+        let imp = self.imp();
+        let muted = imp
+            .store
+            .get()
+            .and_then(|s| s.state().current().map(|c| c.mute_scene_video))
+            .unwrap_or(false);
+        let layer = match imp.active_layer.get() {
+            2 => imp.bg_layer2.get(),
+            _ => imp.bg_layer1.get(),
+        };
+        if let Some(layer) = layer {
+            play_layer_media(layer, muted);
+        }
     }
 
     fn apply_display_size(&self, size: f64) {
@@ -360,7 +393,7 @@ impl PresenterWindow {
     }
 
     /// Dual-layer crossfade matching Tauri `preloadAndTransition` (~0.5s).
-    fn update_background(&self, path: Option<&str>) {
+    fn update_background(&self, path: Option<&str>, muted: bool) {
         let imp = self.imp();
         let Some(layer1) = imp.bg_layer1.get() else {
             return;
@@ -371,6 +404,8 @@ impl PresenterWindow {
 
         let path = path.unwrap_or("");
         if path == imp.last_bg_path.borrow().as_str() {
+            apply_layer_mute(layer1, muted);
+            apply_layer_mute(layer2, muted);
             return;
         }
         *imp.last_bg_path.borrow_mut() = path.to_string();
@@ -394,7 +429,8 @@ impl PresenterWindow {
             (layer1, layer2)
         };
 
-        set_layer_path(incoming, path);
+        pause_layer_media(outgoing);
+        set_layer_path(incoming, path, self.is_visible(), muted);
         incoming.set_opacity(0.0);
         // Keep outgoing visible until the fade completes.
 
@@ -441,19 +477,67 @@ fn make_bg_layer() -> gtk::Picture {
     picture
 }
 
-fn set_layer_path(picture: &gtk::Picture, path: &str) {
+fn set_layer_path(picture: &gtk::Picture, path: &str, playing: bool, muted: bool) {
     let file = Path::new(path);
     if !file.is_file() {
         eprintln!("initiative-tracker: scene image missing or unreadable: {path}");
         clear_layer(picture);
         return;
     }
+    clear_layer(picture);
+    if is_video_path(path) {
+        let media = gtk::MediaFile::for_filename(path);
+        media.set_loop(true);
+        media.set_muted(muted);
+        media.set_volume(if muted { 0.0 } else { 1.0 });
+        media.connect_notify_local(Some("prepared"), move |media, _| {
+            media.set_muted(muted);
+            media.set_volume(if muted { 0.0 } else { 1.0 });
+        });
+        media.connect_notify_local(Some("error"), move |media, _| {
+            if let Some(err) = media.error() {
+                eprintln!("initiative-tracker: scene video failed: {err}");
+            }
+        });
+        if playing {
+            media.set_playing(true);
+        }
+        picture.set_paintable(Some(&media));
+        return;
+    }
     picture.set_filename(Some(path));
 }
 
 fn clear_layer(picture: &gtk::Picture) {
+    pause_layer_media(picture);
     picture.set_filename(None::<&str>);
     picture.set_paintable(None::<&gdk::Paintable>);
+}
+
+fn layer_media(picture: &gtk::Picture) -> Option<gtk::MediaFile> {
+    picture.paintable()?.downcast::<gtk::MediaFile>().ok()
+}
+
+fn apply_layer_mute(picture: &gtk::Picture, muted: bool) {
+    if let Some(media) = layer_media(picture) {
+        media.set_muted(muted);
+        media.set_volume(if muted { 0.0 } else { 1.0 });
+    }
+}
+
+fn pause_layer_media(picture: &gtk::Picture) {
+    if let Some(media) = layer_media(picture) {
+        media.pause();
+    }
+}
+
+fn play_layer_media(picture: &gtk::Picture, muted: bool) {
+    if let Some(media) = layer_media(picture) {
+        media.set_muted(muted);
+        media.set_volume(if muted { 0.0 } else { 1.0 });
+        media.set_loop(true);
+        media.play();
+    }
 }
 
 fn active_path_from_state(state: &AppState) -> Option<&str> {

@@ -44,7 +44,7 @@ flatpak-builder --user --install --force-clean packaging/flatpak/build-dir \
 flatpak run im.apodaca.InitiativeTracker
 ```
 
-The sandbox does not grant home or Pictures access. Add Images uses `GtkFileDialog` (document portal) and copies selected files into `$XDG_DATA_HOME/im.apodaca.InitiativeTracker/images/` so Presenter thumbnails survive a restart.
+The sandbox does not grant home or Pictures access. Add Images uses `GtkFileDialog` (document portal) and copies selected files into `$XDG_DATA_HOME/im.apodaca.InitiativeTracker/images/` so Presenter thumbnails survive a restart. Videos use the same picker and loop on the Presenter background via GStreamer.
 
 ## AppImage
 

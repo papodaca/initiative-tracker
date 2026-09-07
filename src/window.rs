@@ -212,6 +212,7 @@ fn build_presenter_section(window: &InitiativeTrackerWindow) -> gtk::Box {
         .spacing(6)
         .build();
     heading_row.append(&label);
+    heading_row.append(&image_btn.mute_btn);
     heading_row.append(&image_btn.button);
 
     let open_btn = gtk::Button::builder()
@@ -557,7 +558,7 @@ impl InitiativeTrackerWindow {
 
         if let Some(controls) = imp.presenter_controls.get() {
             controls.image_btn.bind_store(store.clone());
-            controls.image_btn.refresh(&camp.images);
+            controls.image_btn.refresh(&camp.images, camp.mute_scene_video);
         }
     }
 

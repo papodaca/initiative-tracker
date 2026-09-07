@@ -101,6 +101,24 @@ impl SceneImage {
             .unwrap_or("Image")
             .to_string()
     }
+
+    pub fn is_video(&self) -> bool {
+        is_video_path(&self.path)
+    }
+}
+
+/// Extensions the file picker and Presenter treat as looping scene video.
+pub const VIDEO_SUFFIXES: &[&str] = &["mp4", "m4v", "webm", "mkv", "mov", "ogv", "avi"];
+
+pub fn is_video_path(path: &str) -> bool {
+    std::path::Path::new(path)
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .is_some_and(|ext| {
+            VIDEO_SUFFIXES
+                .iter()
+                .any(|suffix| ext.eq_ignore_ascii_case(suffix))
+        })
 }
 
 /// First image marked `active`, if any.
@@ -137,6 +155,8 @@ pub struct Campaign {
     pub show_initiative_roll: bool,
     #[serde(default)]
     pub auto_hide_inactive: bool,
+    #[serde(default)]
+    pub mute_scene_video: bool,
 }
 
 fn default_true() -> bool {
@@ -154,6 +174,7 @@ impl Default for Campaign {
             enemy_health_visible: false,
             show_initiative_roll: true,
             auto_hide_inactive: false,
+            mute_scene_video: false,
         }
     }
 }
@@ -174,6 +195,7 @@ impl Campaign {
             enemy_health_visible: false,
             show_initiative_roll: true,
             auto_hide_inactive: false,
+            mute_scene_video: false,
         }
     }
 
@@ -435,6 +457,7 @@ mod tests {
         assert!(camp.images.is_empty());
         assert!(camp.show_initiative_roll);
         assert!(!camp.auto_hide_inactive);
+        assert!(!camp.mute_scene_video);
     }
 
     #[test]
@@ -514,6 +537,16 @@ mod tests {
             SceneImage::name_from_path(std::path::Path::new("noext")),
             "noext"
         );
+    }
+
+    #[test]
+    fn is_video_path_matches_common_extensions() {
+        assert!(is_video_path("/tmp/tavern.webm"));
+        assert!(is_video_path("C:\\scenes\\Rain.MP4"));
+        assert!(!is_video_path("/tmp/tavern.png"));
+        assert!(!is_video_path("noext"));
+        assert!(SceneImage::new("loop", "/data/loop.mkv").is_video());
+        assert!(!SceneImage::new("map", "/data/map.jpg").is_video());
     }
 
     #[test]

@@ -291,7 +291,7 @@ impl StateStore {
         })
     }
 
-    /// Append scene images, copying each file into the app images directory.
+    /// Append scene images or videos, copying each file into the app images directory.
     ///
     /// Copies keep thumbnails/Presenter backgrounds readable under a tight
     /// Flatpak sandbox after the document portal grant for the picker ends.
@@ -338,6 +338,13 @@ impl StateStore {
                 image.name = name.to_string();
             }
             true
+        })
+    }
+
+    /// Mute or unmute looping scene video on the Presenter.
+    pub fn set_mute_scene_video(&self, muted: bool) -> Result<(), PersistError> {
+        self.with_mut(|state| {
+            state.current_mut().mute_scene_video = muted;
         })
     }
 }
@@ -623,12 +630,16 @@ mod tests {
         let id = camp.images[1].id.clone();
         assert!(store.set_active_image(&id).unwrap());
         assert!(store.rename_image(&id, "Dungeon".into()).unwrap());
+        assert!(!store.current_campaign().mute_scene_video);
+        store.set_mute_scene_video(true).unwrap();
+        assert!(store.current_campaign().mute_scene_video);
 
         let reloaded = load_json(&path).unwrap().current().unwrap().clone();
         assert_eq!(reloaded.images.len(), 2);
         assert!(!reloaded.images[0].active);
         assert!(reloaded.images[1].active);
         assert_eq!(reloaded.images[1].name, "Dungeon");
+        assert!(reloaded.mute_scene_video);
         let _ = std::fs::remove_file(&path);
         let _ = std::fs::remove_file(&img_a);
         let _ = std::fs::remove_file(&img_b);

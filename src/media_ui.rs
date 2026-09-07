@@ -1,7 +1,8 @@
-//! Console scene-image list (Presenter & Media).
+//! Console scene media list (Presenter & Media).
 //!
 //! Parity with Tauri `ImageList.svelte`: multi-file add, thumbnail activate,
 //! inline rename. Removal is intentionally omitted (not in Tauri UI).
+//! Videos use the same list; the Presenter loops them in the scene background.
 
 use adw::prelude::*;
 use gdk_pixbuf::Pixbuf;
@@ -9,11 +10,11 @@ use gtk::gdk::Texture;
 use gtk::gio;
 use gtk::glib;
 use gtk::prelude::EditableExt;
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::path::PathBuf;
 use std::rc::Rc;
 
-use crate::domain::SceneImage;
+use crate::domain::{is_video_path, SceneImage, VIDEO_SUFFIXES};
 use crate::persistence::StateStore;
 
 const IMAGE_SUFFIXES: &[&str] = &[
@@ -32,8 +33,10 @@ type SharedStore = Rc<RefCell<Option<StateStore>>>;
 /// so `window.rs` only needs to swap the appended widget.
 pub struct SceneImageButton {
     pub button: gtk::Button,
+    pub mute_btn: gtk::ToggleButton,
     list: gtk::ListBox,
     store: SharedStore,
+    mute_guard: Rc<Cell<bool>>,
 }
 
 impl SceneImageButton {
@@ -47,7 +50,7 @@ impl SceneImageButton {
             .build();
 
         let placeholder = gtk::Label::builder()
-            .label("No scene images yet. Add some to show them on the Presenter.")
+            .label("No scene images or videos yet. Add some to show them on the Presenter.")
             .wrap(true)
             .justify(gtk::Justification::Center)
             .margin_top(24)
@@ -60,17 +63,19 @@ impl SceneImageButton {
 
         let add_content = adw::ButtonContent::builder()
             .icon_name("list-add-symbolic")
-            .label("Add Images")
+            .label("Add")
             .build();
         let add_btn = gtk::Button::builder()
             .child(&add_content)
-            .tooltip_text("Add scene images (copied into app data)")
+            .tooltip_text("Add scene images or videos (copied into app data)")
             .css_classes(["suggested-action"])
             .build();
-        add_btn.update_property(&[gtk::accessible::Property::Label("Add scene images")]);
+        add_btn.update_property(&[gtk::accessible::Property::Label(
+            "Add scene images or videos",
+        )]);
 
         let hint = gtk::Label::builder()
-            .label("Click a thumbnail to show it on the Presenter. Click a name to rename.")
+            .label("Click a thumbnail to show it on the Presenter. Videos loop there. Click a name to rename.")
             .wrap(true)
             .xalign(0.0)
             .css_classes(["dim-label", "caption"])
@@ -98,12 +103,19 @@ impl SceneImageButton {
         let header = adw::HeaderBar::new();
         header.pack_start(&add_btn);
 
+        let mute_btn = gtk::ToggleButton::builder()
+            .icon_name("audio-volume-high-symbolic")
+            .tooltip_text("Mute scene video on the Presenter")
+            .valign(gtk::Align::Center)
+            .build();
+        mute_btn.update_property(&[gtk::accessible::Property::Label("Mute scene video")]);
+
         let toolbar = adw::ToolbarView::new();
         toolbar.add_top_bar(&header);
         toolbar.set_content(Some(&dialog_content));
 
         let dialog = adw::Dialog::builder()
-            .title("Scene Images")
+            .title("Scene Media")
             .child(&toolbar)
             .content_width(480)
             .content_height(560)
@@ -112,10 +124,12 @@ impl SceneImageButton {
         // "Images…" button that opens the dialog; sits in the section heading row.
         let button = gtk::Button::builder()
             .label("Images…")
-            .tooltip_text("Manage scene images")
+            .tooltip_text("Manage scene images and videos")
             .valign(gtk::Align::Center)
             .build();
-        button.update_property(&[gtk::accessible::Property::Label("Manage scene images")]);
+        button.update_property(&[gtk::accessible::Property::Label(
+            "Manage scene images and videos",
+        )]);
 
         button.connect_clicked(glib::clone!(
             #[strong]
@@ -143,18 +157,50 @@ impl SceneImageButton {
                     eprintln!("initiative-tracker: Add Images needs a window parent");
                     return;
                 };
-                open_images_file_dialog(&parent, bound);
+                open_media_file_dialog(&parent, bound);
             }
         ));
 
-        Self { button, list, store }
+        let mute_guard = Rc::new(Cell::new(false));
+        mute_btn.connect_toggled(glib::clone!(
+            #[strong]
+            store,
+            #[strong]
+            mute_guard,
+            move |btn| {
+                update_mute_icon(btn);
+                if mute_guard.get() {
+                    return;
+                }
+                let Some(bound) = store.borrow().clone() else {
+                    eprintln!("initiative-tracker: mute scene video before store is ready");
+                    return;
+                };
+                if let Err(e) = bound.set_mute_scene_video(btn.is_active()) {
+                    eprintln!("initiative-tracker: mute scene video failed: {e}");
+                }
+            }
+        ));
+
+        Self {
+            button,
+            mute_btn,
+            list,
+            store,
+            mute_guard,
+        }
     }
 
     pub fn bind_store(&self, store: StateStore) {
         *self.store.borrow_mut() = Some(store);
     }
 
-    pub fn refresh(&self, images: &[SceneImage]) {
+    pub fn refresh(&self, images: &[SceneImage], mute_scene_video: bool) {
+        self.mute_guard.set(true);
+        self.mute_btn.set_active(mute_scene_video);
+        update_mute_icon(&self.mute_btn);
+        self.mute_guard.set(false);
+
         while let Some(child) = self.list.first_child() {
             self.list.remove(&child);
         }
@@ -200,41 +246,7 @@ fn build_image_row(image: &SceneImage, store: &StateStore) -> gtk::ListBoxRow {
         .build();
     thumb_slot.set_overflow(gtk::Overflow::Hidden);
 
-    let texture = PathBuf::from(&image.path)
-        .is_file()
-        .then(|| load_thumbnail_texture(&image.path))
-        .flatten();
-    match texture {
-        Some(texture) => {
-            let thumb = gtk::Picture::builder()
-                .paintable(&texture)
-                .content_fit(gtk::ContentFit::Contain)
-                .can_shrink(false)
-                .halign(gtk::Align::Center)
-                .valign(gtk::Align::Center)
-                .hexpand(true)
-                .vexpand(true)
-                .css_classes(["scene-image-thumb-picture"])
-                .build();
-            thumb_slot.append(&thumb);
-        }
-        None => {
-            eprintln!(
-                "initiative-tracker: thumbnail unavailable for {}: {}",
-                image.name, image.path
-            );
-            let missing = gtk::Image::builder()
-                .icon_name("image-missing-symbolic")
-                .pixel_size(32)
-                .halign(gtk::Align::Center)
-                .valign(gtk::Align::Center)
-                .hexpand(true)
-                .vexpand(true)
-                .css_classes(["dim-label"])
-                .build();
-            thumb_slot.append(&missing);
-        }
-    }
+    fill_thumb_slot(&thumb_slot, image);
     thumb_slot.set_tooltip_text(Some(&format!("Show {} on the Presenter", image.name)));
 
     let click = gtk::GestureClick::new();
@@ -275,6 +287,15 @@ fn build_image_row(image: &SceneImage, store: &StateStore) -> gtk::ListBoxRow {
     row
 }
 
+fn update_mute_icon(btn: &gtk::ToggleButton) {
+    let icon = if btn.is_active() {
+        "audio-volume-muted-symbolic"
+    } else {
+        "audio-volume-high-symbolic"
+    };
+    btn.set_icon_name(icon);
+}
+
 /// `GtkEditableLabel` has no ellipsize property; its display label is the
 /// `GtkLabel` inside the internal `GtkStack`. Without this a long file name
 /// forces the whole dialog wider than the window.
@@ -292,6 +313,50 @@ fn ellipsize_editable_label(label: &gtk::EditableLabel) {
         }
         child = widget.next_sibling();
     }
+}
+
+fn fill_thumb_slot(thumb_slot: &gtk::Box, image: &SceneImage) {
+    let path_ok = PathBuf::from(&image.path).is_file();
+    if path_ok && is_video_path(&image.path) {
+        thumb_slot.append(&thumb_icon("video-x-generic-symbolic"));
+        return;
+    }
+
+    let texture = path_ok.then(|| load_thumbnail_texture(&image.path)).flatten();
+    match texture {
+        Some(texture) => {
+            let thumb = gtk::Picture::builder()
+                .paintable(&texture)
+                .content_fit(gtk::ContentFit::Contain)
+                .can_shrink(false)
+                .halign(gtk::Align::Center)
+                .valign(gtk::Align::Center)
+                .hexpand(true)
+                .vexpand(true)
+                .css_classes(["scene-image-thumb-picture"])
+                .build();
+            thumb_slot.append(&thumb);
+        }
+        None => {
+            eprintln!(
+                "initiative-tracker: thumbnail unavailable for {}: {}",
+                image.name, image.path
+            );
+            thumb_slot.append(&thumb_icon("image-missing-symbolic"));
+        }
+    }
+}
+
+fn thumb_icon(icon_name: &str) -> gtk::Image {
+    gtk::Image::builder()
+        .icon_name(icon_name)
+        .pixel_size(32)
+        .halign(gtk::Align::Center)
+        .valign(gtk::Align::Center)
+        .hexpand(true)
+        .vexpand(true)
+        .css_classes(["dim-label"])
+        .build()
 }
 
 fn load_thumbnail_texture(path: &str) -> Option<Texture> {
@@ -322,21 +387,39 @@ fn wire_rename(label: &gtk::EditableLabel, store: &StateStore, id: &str) {
     );
 }
 
-fn open_images_file_dialog(parent: &impl IsA<gtk::Window>, store: StateStore) {
+fn suffix_filter(name: &str, suffixes: &[&str], mime: &str) -> gtk::FileFilter {
     let filter = gtk::FileFilter::new();
-    filter.set_name(Some("Images"));
-    for suffix in IMAGE_SUFFIXES {
+    filter.set_name(Some(name));
+    for suffix in suffixes {
+        filter.add_suffix(suffix);
+    }
+    filter.add_mime_type(mime);
+    filter
+}
+
+fn media_filter() -> gtk::FileFilter {
+    let filter = gtk::FileFilter::new();
+    filter.set_name(Some("Images and Videos"));
+    for suffix in IMAGE_SUFFIXES.iter().chain(VIDEO_SUFFIXES) {
         filter.add_suffix(suffix);
     }
     filter.add_mime_type("image/*");
+    filter.add_mime_type("video/*");
+    filter
+}
 
+fn open_media_file_dialog(parent: &impl IsA<gtk::Window>, store: StateStore) {
+    let default_filter = media_filter();
     let filters = gio::ListStore::new::<gtk::FileFilter>();
-    filters.append(&filter);
+    filters.append(&default_filter);
+    filters.append(&suffix_filter("Images", IMAGE_SUFFIXES, "image/*"));
+    filters.append(&suffix_filter("Videos", VIDEO_SUFFIXES, "video/*"));
 
     let dialog = gtk::FileDialog::builder()
-        .title("Add Images")
+        .title("Add Images and Videos")
         .modal(true)
         .filters(&filters)
+        .default_filter(&default_filter)
         .build();
 
     dialog.open_multiple(

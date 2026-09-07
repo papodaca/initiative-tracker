@@ -269,6 +269,7 @@ fn map_campaign(lc: LegacyCampaign, report: &mut ImportReport) -> Campaign {
         enemy_health_visible: lc.enemy_health_visible.unwrap_or(false),
         show_initiative_roll: lc.show_initiative_roll.unwrap_or(true),
         auto_hide_inactive: lc.auto_hide_inactive.unwrap_or(false),
+        mute_scene_video: false,
     }
 }
 
