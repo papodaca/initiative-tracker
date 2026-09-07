@@ -51,6 +51,10 @@ sudo -u builder env \
   PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
   APPIMAGE_EXTRACT_AND_RUN=1 \
   HOME=/home/builder \
+  IT_DOCKER_ROOT="${ROOT}" \
+  GITHUB_REF="${GITHUB_REF:-}" \
+  GITHUB_REF_NAME="${GITHUB_REF_NAME:-}" \
+  GITHUB_REF_TYPE="${GITHUB_REF_TYPE:-}" \
   ./build.sh
 
 shopt -s nullglob

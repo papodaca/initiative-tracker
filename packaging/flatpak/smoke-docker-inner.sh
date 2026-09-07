@@ -34,15 +34,7 @@ run_appstream_compose "${compose_probe}/files"
 rm -rf "${compose_probe}"
 
 flatpak_version() {
-  local tag
-  tag=$(git -C "${ROOT}" describe --tags --exact-match HEAD 2>/dev/null || true)
-  if [[ ${tag} =~ ^v([0-9][^[:space:]]*)$ ]]; then
-    printf '%s' "${BASH_REMATCH[1]}"
-  else
-    printf '0.1.0+git%s.%s' \
-      "$(git -C "${ROOT}" rev-list --count HEAD)" \
-      "$(git -C "${ROOT}" rev-parse --short HEAD)"
-  fi
+  "${ROOT}/packaging/version.sh"
 }
 
 useradd -m builder

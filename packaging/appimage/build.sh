@@ -41,15 +41,7 @@ APPDIR="${SCRIPT_DIR}/AppDir"
 BUILDDIR="${SCRIPT_DIR}/builddir"
 
 appimage_version() {
-  local tag
-  tag=$(git -C "${REPO_ROOT}" describe --tags --exact-match HEAD 2>/dev/null || true)
-  if [[ ${tag} =~ ^v([0-9][^[:space:]]*)$ ]]; then
-    printf '%s' "${BASH_REMATCH[1]}"
-  else
-    printf '0.1.0+git%s.%s' \
-      "$(git -C "${REPO_ROOT}" rev-list --count HEAD)" \
-      "$(git -C "${REPO_ROOT}" rev-parse --short HEAD)"
-  fi
+  IT_DOCKER_ROOT="${REPO_ROOT}" "${REPO_ROOT}/packaging/version.sh"
 }
 
 patch_gtk_plugin() {

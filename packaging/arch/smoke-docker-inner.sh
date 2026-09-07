@@ -21,6 +21,10 @@ chown -R builder:builder "${ROOT}"
 cd "${ROOT}/packaging/arch"
 sudo -u builder env \
   HOME=/home/builder \
+  IT_DOCKER_ROOT="${ROOT}" \
+  GITHUB_REF="${GITHUB_REF:-}" \
+  GITHUB_REF_NAME="${GITHUB_REF_NAME:-}" \
+  GITHUB_REF_TYPE="${GITHUB_REF_TYPE:-}" \
   makepkg -s --noconfirm
 
 shopt -s nullglob

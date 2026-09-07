@@ -18,12 +18,16 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          fetch-tags: true
 
       - name: Build package
         run: |
           set -euo pipefail
           docker run --rm \
             -e IT_DOCKER_ROOT=/workspace \
+            -e GITHUB_REF \
+            -e GITHUB_REF_NAME \
+            -e GITHUB_REF_TYPE \
             -v "$PWD":/workspace \
             -w /workspace \
             archlinux:base-devel \
@@ -44,12 +48,16 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          fetch-tags: true
 
       - name: Build AppImage
         run: |
           set -euo pipefail
           docker run --rm \
             -e IT_DOCKER_ROOT=/workspace \
+            -e GITHUB_REF \
+            -e GITHUB_REF_NAME \
+            -e GITHUB_REF_TYPE \
             -v "$PWD":/workspace \
             -w /workspace \
             ubuntu:26.04 \
@@ -70,12 +78,16 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          fetch-tags: true
 
       - name: Build and bundle Flatpak
         run: |
           set -euo pipefail
           docker run --rm --privileged \
             -e IT_DOCKER_ROOT=/workspace \
+            -e GITHUB_REF \
+            -e GITHUB_REF_NAME \
+            -e GITHUB_REF_TYPE \
             -v "$PWD":/workspace \
             -w /workspace \
             ubuntu:latest \
