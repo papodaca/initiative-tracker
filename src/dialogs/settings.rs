@@ -55,9 +55,7 @@ pub fn present_settings(parent: &impl IsA<gtk::Widget>, store: StateStore) {
         .active(campaign.auto_hide_inactive)
         .build();
 
-    let save_row = adw::ButtonRow::builder()
-        .title("Save Changes")
-        .build();
+    let save_row = adw::ButtonRow::builder().title("Save Changes").build();
     save_row.add_css_class("suggested-action");
 
     group.add(&theme_row);

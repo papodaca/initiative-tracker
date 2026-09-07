@@ -15,9 +15,14 @@ pub fn visible_combatants(campaign: &Campaign) -> Vec<&Combatant> {
 pub enum HpDisplay {
     Hidden,
     /// `current / max`
-    Full { current: i32, max: i32 },
+    Full {
+        current: i32,
+        max: i32,
+    },
     /// Damage taken (`max - health`); UI shows `-N` or empty when zero.
-    DamageTaken { amount: i32 },
+    DamageTaken {
+        amount: i32,
+    },
 }
 
 /// Presenter HP visibility, matching `PlayerList.svelte` after the prop swap in
@@ -36,11 +41,7 @@ pub fn presenter_hp_display(combatant: &Combatant, campaign: &Campaign) -> HpDis
     // Presenter.svelte swaps the two campaign flags into PlayerList props.
     let health_visible = campaign.enemy_health_visible;
     let enemy_health_visible = campaign.health_visible;
-    hp_display(
-        combatant,
-        health_visible,
-        enemy_health_visible,
-    )
+    hp_display(combatant, health_visible, enemy_health_visible)
 }
 
 /// Core HP display rules used by [`presenter_hp_display`], parameterized as
@@ -50,10 +51,7 @@ pub fn hp_display(
     health_visible: bool,
     enemy_health_visible: bool,
 ) -> HpDisplay {
-    let is_pc_or_npc = matches!(
-        combatant.kind,
-        CombatantKind::Player | CombatantKind::Npc
-    );
+    let is_pc_or_npc = matches!(combatant.kind, CombatantKind::Player | CombatantKind::Npc);
     let is_monster = combatant.kind == CombatantKind::Monster;
 
     if (health_visible && enemy_health_visible) || (health_visible && is_pc_or_npc) {
@@ -113,7 +111,10 @@ mod tests {
         let c = camp_with(true, false);
         assert!(matches!(
             presenter_hp_display(&pc(), &c),
-            HpDisplay::Full { current: 10, max: 10 }
+            HpDisplay::Full {
+                current: 10,
+                max: 10
+            }
         ));
         assert_eq!(
             presenter_hp_display(&monster(), &c),

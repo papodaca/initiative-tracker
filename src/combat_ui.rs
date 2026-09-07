@@ -68,9 +68,7 @@ impl AddCombatantForm {
 fn present_add_combatant_dialog(parent: &gtk::Window, store: StateStore) {
     let group = adw::PreferencesGroup::new();
 
-    let name = adw::EntryRow::builder()
-        .title("Name")
-        .build();
+    let name = adw::EntryRow::builder().title("Name").build();
 
     let initiative = adw::SpinRow::builder()
         .title("Initiative")
@@ -271,7 +269,13 @@ impl VisibilityToggles {
         }
     }
 
-    pub fn refresh(&self, initiative_visible: bool, health_visible: bool, enemy_health_visible: bool, guard: &UiGuard) {
+    pub fn refresh(
+        &self,
+        initiative_visible: bool,
+        health_visible: bool,
+        enemy_health_visible: bool,
+        guard: &UiGuard,
+    ) {
         guard.set(true);
         self.initiative.set_active(initiative_visible);
         self.enemy_hp.set_active(health_visible);
@@ -447,7 +451,9 @@ fn build_combatant_row(player: &Combatant, store: &StateStore) -> gtk::ListBoxRo
     wire_editable_i32(&init, store, &player.id, |v| CombatantPatch::Initiative(v));
     wire_editable_name(&name, store, &player.id);
     wire_editable_i32(&health, store, &player.id, |v| CombatantPatch::Health(v));
-    wire_editable_i32(&max_health, store, &player.id, |v| CombatantPatch::MaxHealth(v));
+    wire_editable_i32(&max_health, store, &player.id, |v| {
+        CombatantPatch::MaxHealth(v)
+    });
 
     outer.append(&init);
     outer.append(&info);

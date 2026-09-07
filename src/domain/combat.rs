@@ -103,10 +103,7 @@ mod tests {
         let mut c = sample_campaign();
         sort_by_initiative(&mut c.players);
         assert_eq!(
-            c.players
-                .iter()
-                .map(|p| p.initiative)
-                .collect::<Vec<_>>(),
+            c.players.iter().map(|p| p.initiative).collect::<Vec<_>>(),
             vec![10, 5, 1]
         );
         assert_eq!(c.players[0].name, "B");

@@ -235,9 +235,7 @@ glib::wrapper! {
 
 impl PresenterWindow {
     pub fn new(app: &impl IsA<gtk::Application>, store: StateStore) -> Self {
-        let window: Self = glib::Object::builder()
-            .property("application", app)
-            .build();
+        let window: Self = glib::Object::builder().property("application", app).build();
 
         let imp = window.imp();
         let _ = imp.store.set(store.clone());
@@ -323,10 +321,7 @@ impl PresenterWindow {
         apply_theme(state.theme);
         self.apply_display_size(state.display_size);
         self.rebind_list(&state);
-        let muted = state
-            .current()
-            .map(|c| c.mute_scene_video)
-            .unwrap_or(false);
+        let muted = state.current().map(|c| c.mute_scene_video).unwrap_or(false);
         self.update_background(active_path_from_state(&state), muted);
     }
 
@@ -362,9 +357,7 @@ impl PresenterWindow {
             return;
         };
         let clamped = size.clamp(1.0, 5.0);
-        provider.load_from_string(&format!(
-            ".presenter-scale {{ font-size: {clamped}em; }}"
-        ));
+        provider.load_from_string(&format!(".presenter-scale {{ font-size: {clamped}em; }}"));
     }
 
     fn rebind_list(&self, state: &AppState) {

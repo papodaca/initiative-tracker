@@ -122,10 +122,7 @@ impl StateStore {
     }
 
     pub fn subscribe(&self, listener: impl Fn() + 'static) {
-        self.inner
-            .borrow_mut()
-            .listeners
-            .push(Rc::new(listener));
+        self.inner.borrow_mut().listeners.push(Rc::new(listener));
     }
 
     fn notify(&self) {
@@ -153,11 +150,7 @@ impl StateStore {
         })
     }
 
-    pub fn update_combatant(
-        &self,
-        id: &str,
-        patch: CombatantPatch,
-    ) -> Result<bool, PersistError> {
+    pub fn update_combatant(&self, id: &str, patch: CombatantPatch) -> Result<bool, PersistError> {
         self.with_mut(|state| {
             let campaign = state.current_mut();
             let Some(index) = campaign.players.iter().position(|p| p.id == id) else {
@@ -325,12 +318,7 @@ impl StateStore {
     /// Inline rename for a scene image.
     pub fn rename_image(&self, id: &str, name: String) -> Result<bool, PersistError> {
         self.with_mut(|state| {
-            let Some(image) = state
-                .current_mut()
-                .images
-                .iter_mut()
-                .find(|i| i.id == id)
-            else {
+            let Some(image) = state.current_mut().images.iter_mut().find(|i| i.id == id) else {
                 return false;
             };
             let name = name.trim();
@@ -530,19 +518,31 @@ mod tests {
         store
             .update_combatant(&id, CombatantPatch::Health(0))
             .unwrap();
-        assert!(store.current_campaign().players.iter().find(|p| p.id == id).unwrap().dead);
+        assert!(
+            store
+                .current_campaign()
+                .players
+                .iter()
+                .find(|p| p.id == id)
+                .unwrap()
+                .dead
+        );
 
         store
             .update_combatant(&id, CombatantPatch::Health(4))
             .unwrap();
-        assert!(!store.current_campaign().players.iter().find(|p| p.id == id).unwrap().dead);
+        assert!(
+            !store
+                .current_campaign()
+                .players
+                .iter()
+                .find(|p| p.id == id)
+                .unwrap()
+                .dead
+        );
 
         assert!(store.delete_combatant(&id).unwrap());
-        assert!(!store
-            .current_campaign()
-            .players
-            .iter()
-            .any(|p| p.id == id));
+        assert!(!store.current_campaign().players.iter().any(|p| p.id == id));
 
         let reloaded = load_json(&path).unwrap();
         assert!(!reloaded
@@ -609,9 +609,7 @@ mod tests {
         std::fs::write(&img_a, b"png-bytes").unwrap();
         std::fs::write(&img_b, b"jpg-bytes").unwrap();
         assert_eq!(
-            store
-                .add_images(&[img_a.clone(), img_b.clone()])
-                .unwrap(),
+            store.add_images(&[img_a.clone(), img_b.clone()]).unwrap(),
             2
         );
         let camp = store.current_campaign();

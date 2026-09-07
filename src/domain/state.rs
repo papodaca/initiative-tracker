@@ -43,7 +43,12 @@ pub struct Combatant {
 }
 
 impl Combatant {
-    pub fn new(name: impl Into<String>, kind: CombatantKind, initiative: i32, max_health: i32) -> Self {
+    pub fn new(
+        name: impl Into<String>,
+        kind: CombatantKind,
+        initiative: i32,
+        max_health: i32,
+    ) -> Self {
         let max_health = if max_health == 0 {
             DEFAULT_HEALTH
         } else {
@@ -262,17 +267,14 @@ impl AppState {
             changed = true;
         }
 
-        if self.current_campaign.is_empty()
-            || !self.campaigns.contains(&self.current_campaign)
-        {
+        if self.current_campaign.is_empty() || !self.campaigns.contains(&self.current_campaign) {
             self.current_campaign = self.campaigns[0].clone();
             changed = true;
         }
 
         for name in self.campaigns.clone() {
             if !self.campaign_data.contains_key(&name) {
-                self.campaign_data
-                    .insert(name, Campaign::default_seed());
+                self.campaign_data.insert(name, Campaign::default_seed());
                 changed = true;
             }
         }
@@ -329,8 +331,7 @@ impl AppState {
         if new_name == old {
             return true;
         }
-        if !self.campaigns.iter().any(|c| c == &old)
-            || self.campaigns.iter().any(|c| c == new_name)
+        if !self.campaigns.iter().any(|c| c == &old) || self.campaigns.iter().any(|c| c == new_name)
         {
             return false;
         }
@@ -422,10 +423,7 @@ where
         }
 
         fn visit_str<E: de::Error>(self, v: &str) -> Result<i32, E> {
-            v.trim()
-                .parse::<f64>()
-                .map(|n| n as i32)
-                .map_err(E::custom)
+            v.trim().parse::<f64>().map(|n| n as i32).map_err(E::custom)
         }
     }
 
@@ -514,10 +512,7 @@ mod tests {
             resolve_combatant_name("", CombatantKind::Player),
             "New Player"
         );
-        assert_eq!(
-            resolve_combatant_name("  ", CombatantKind::Npc),
-            "New Npc"
-        );
+        assert_eq!(resolve_combatant_name("  ", CombatantKind::Npc), "New Npc");
         assert_eq!(
             resolve_combatant_name("Goblin", CombatantKind::Monster),
             "Goblin"
@@ -559,10 +554,15 @@ mod tests {
         assert!(activate_scene_image(&mut images, &id));
         assert!(!images[0].active);
         assert!(images[1].active);
-        assert_eq!(active_scene_image(&Campaign {
-            images: images.clone(),
-            ..Campaign::default()
-        }).unwrap().id, id);
+        assert_eq!(
+            active_scene_image(&Campaign {
+                images: images.clone(),
+                ..Campaign::default()
+            })
+            .unwrap()
+            .id,
+            id
+        );
         assert!(!activate_scene_image(&mut images, "missing"));
     }
 }

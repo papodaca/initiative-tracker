@@ -287,9 +287,7 @@ glib::wrapper! {
 
 impl InitiativeTrackerWindow {
     pub fn new(app: &crate::application::InitiativeTrackerApplication) -> Self {
-        glib::Object::builder()
-            .property("application", app)
-            .build()
+        glib::Object::builder().property("application", app).build()
     }
 
     /// Persist state immediately (window close and app shutdown).
@@ -310,17 +308,18 @@ impl InitiativeTrackerWindow {
         let controller = gtk::ShortcutController::new();
         controller.set_scope(gtk::ShortcutScope::Managed);
 
-        let add = |controller: &gtk::ShortcutController,
-                   accel: &str,
-                   cb: Box<dyn Fn(&InitiativeTrackerWindow) -> glib::Propagation>| {
-            let Some(trigger) = gtk::ShortcutTrigger::parse_string(accel) else {
-                eprintln!("initiative-tracker: invalid shortcut accel: {accel}");
-                return;
+        let add =
+            |controller: &gtk::ShortcutController,
+             accel: &str,
+             cb: Box<dyn Fn(&InitiativeTrackerWindow) -> glib::Propagation>| {
+                let Some(trigger) = gtk::ShortcutTrigger::parse_string(accel) else {
+                    eprintln!("initiative-tracker: invalid shortcut accel: {accel}");
+                    return;
+                };
+                let window = self.clone();
+                let action = gtk::CallbackAction::new(move |_, _| cb(&window));
+                controller.add_shortcut(gtk::Shortcut::new(Some(trigger), Some(action)));
             };
-            let window = self.clone();
-            let action = gtk::CallbackAction::new(move |_, _| cb(&window));
-            controller.add_shortcut(gtk::Shortcut::new(Some(trigger), Some(action)));
-        };
 
         add(
             &controller,
@@ -522,11 +521,7 @@ impl InitiativeTrackerWindow {
 
         if let Some(dropdown) = imp.campaign_dropdown.get() {
             imp.updating_dropdown.set(true);
-            let labels: Vec<String> = state
-                .campaigns
-                .iter()
-                .map(|c| to_title_case(c))
-                .collect();
+            let labels: Vec<String> = state.campaigns.iter().map(|c| to_title_case(c)).collect();
             let refs: Vec<&str> = labels.iter().map(|s| s.as_str()).collect();
             let model = gtk::StringList::new(&refs);
             dropdown.set_model(Some(&model));
@@ -558,7 +553,9 @@ impl InitiativeTrackerWindow {
 
         if let Some(controls) = imp.presenter_controls.get() {
             controls.image_btn.bind_store(store.clone());
-            controls.image_btn.refresh(&camp.images, camp.mute_scene_video);
+            controls
+                .image_btn
+                .refresh(&camp.images, camp.mute_scene_video);
         }
     }
 

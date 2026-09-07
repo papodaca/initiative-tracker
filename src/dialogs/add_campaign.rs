@@ -51,9 +51,7 @@ pub fn present_add_campaign(parent: &impl IsA<gtk::Widget>, store: StateStore) {
                         }
                     }
                     Ok(false) => {
-                        eprintln!(
-                            "initiative-tracker: campaign name empty or duplicate: {name}"
-                        );
+                        eprintln!("initiative-tracker: campaign name empty or duplicate: {name}");
                     }
                     Err(e) => eprintln!("initiative-tracker: add campaign failed: {e}"),
                 }

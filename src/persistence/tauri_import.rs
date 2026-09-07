@@ -147,9 +147,10 @@ where
     let v = Option::<Value>::deserialize(deserializer)?;
     Ok(match v {
         None | Some(Value::Null) => None,
-        Some(Value::Number(n)) => n.as_i64().map(|i| i as i32).or_else(|| {
-            n.as_f64().map(|f| f as i32)
-        }),
+        Some(Value::Number(n)) => n
+            .as_i64()
+            .map(|i| i as i32)
+            .or_else(|| n.as_f64().map(|f| f as i32)),
         Some(Value::String(s)) => s.trim().parse::<f64>().ok().map(|f| f as i32),
         Some(_) => None,
     })
@@ -171,11 +172,20 @@ fn map_legacy(legacy: LegacyState, report: &mut ImportReport) -> AppState {
         .campaigns
         .unwrap_or_else(|| vec![DEFAULT_CAMPAIGN_NAME.to_string()]);
     state.campaigns = campaigns.clone();
-    state.current_campaign = legacy
-        .current_campaign
-        .unwrap_or_else(|| campaigns.first().cloned().unwrap_or_else(|| DEFAULT_CAMPAIGN_NAME.to_string()));
+    state.current_campaign = legacy.current_campaign.unwrap_or_else(|| {
+        campaigns
+            .first()
+            .cloned()
+            .unwrap_or_else(|| DEFAULT_CAMPAIGN_NAME.to_string())
+    });
 
-    let reserved = ["theme", "dislaySize", "displaySize", "currentCampaign", "campaigns"];
+    let reserved = [
+        "theme",
+        "dislaySize",
+        "displaySize",
+        "currentCampaign",
+        "campaigns",
+    ];
     state.campaign_data.clear();
 
     for name in &campaigns {
@@ -187,18 +197,18 @@ fn map_legacy(legacy: LegacyState, report: &mut ImportReport) -> AppState {
                         .insert(name.clone(), map_campaign(lc, report));
                 }
                 Err(e) => {
-                    report
-                        .notes
-                        .push(format!("Failed to parse campaign \"{name}\": {e}; seeding default"));
+                    report.notes.push(format!(
+                        "Failed to parse campaign \"{name}\": {e}; seeding default"
+                    ));
                     state
                         .campaign_data
                         .insert(name.clone(), Campaign::default_seed());
                 }
             }
         } else {
-            report
-                .notes
-                .push(format!("Campaign \"{name}\" missing from store; seeding default"));
+            report.notes.push(format!(
+                "Campaign \"{name}\" missing from store; seeding default"
+            ));
             state
                 .campaign_data
                 .insert(name.clone(), Campaign::default_seed());
@@ -235,9 +245,7 @@ fn map_campaign(lc: LegacyCampaign, report: &mut ImportReport) -> Campaign {
             let max_health = p.max_health.unwrap_or(crate::domain::DEFAULT_HEALTH);
             let health = p.health.unwrap_or(max_health);
             let mut c = Combatant {
-                id: p
-                    .id
-                    .unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
+                id: p.id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
                 name: p.name.unwrap_or_else(|| "Unnamed".into()),
                 kind: parse_kind(p.kind.as_deref()),
                 initiative: p.initiative.unwrap_or(0),
@@ -297,18 +305,14 @@ fn map_image(img: LegacyImage, report: &mut ImportReport) -> Option<SceneImage> 
             }
         }
     } else {
-        report.skipped_images.push(
-            img.name
-                .clone()
-                .unwrap_or_else(|| "<unnamed image>".into()),
-        );
+        report
+            .skipped_images
+            .push(img.name.clone().unwrap_or_else(|| "<unnamed image>".into()));
         return None;
     };
 
     Some(SceneImage {
-        id: img
-            .id
-            .unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
+        id: img.id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
         name: img.name.unwrap_or_else(|| {
             Path::new(&path)
                 .file_stem()
@@ -394,10 +398,7 @@ mod tests {
     #[test]
     fn reject_path_traversal_in_asset_url() {
         // Encoded traversal: asset://localhost/..%2F..%2Fetc%2Fpasswd → ../../etc/passwd
-        assert!(recover_path_from_file_url(
-            "asset://localhost/..%2F..%2Fetc%2Fpasswd"
-        )
-        .is_none());
+        assert!(recover_path_from_file_url("asset://localhost/..%2F..%2Fetc%2Fpasswd").is_none());
         // Non-absolute decoded path must be rejected.
         assert!(recover_path_from_file_url("asset://localhost/relative").is_none());
     }
