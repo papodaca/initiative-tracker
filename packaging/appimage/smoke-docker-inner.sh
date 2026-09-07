@@ -30,6 +30,8 @@ apt-get install -y --no-install-recommends libgirepository-2.0-dev \
 
 apt-get install -y --no-install-recommends libgtk-4-bin || true
 apt-get install -y --no-install-recommends gstreamer1.0-gtk4 || true
+# gst-video-thumbnailer is a host runtime helper (glycin/bwrap). Do not install
+# it here; the AppImage is not bundled with it.
 apt-get install -y --no-install-recommends libgdk-pixbuf-2.0-bin \
   || apt-get install -y --no-install-recommends libgdk-pixbuf2.0-bin \
   || true

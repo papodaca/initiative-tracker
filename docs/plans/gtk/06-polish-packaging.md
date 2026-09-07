@@ -36,14 +36,16 @@ Make the GTK app ship-ready on **GNOME 50** Flatpak while **keeping the Tauri fr
 ### Flatpak
 
 - Runtime/SDK: `org.gnome.Platform` // `50`, `org.gnome.Sdk` // `50`
-- Finish args: Wayland + fallback X11, dri, etc. as typical for GTK games/tools UIs
+- Finish args: Wayland + fallback X11, dri, pulseaudio. No home/Pictures overrides.
 - Prefer **document portal** for images over broad `filesystem=home`
 - AppStream metainfo validates; aligns with desktop entry `app-id`
+- GNOME Platform has no `gst-video-thumbnailer`. Manifest builds `totem-pl-parser` plus `totem-video-thumbnailer` so the Images dialog can still show a video frame.
 
 ### Native
 
-- `meson install` installs binary, icons, desktop, metainfo
-- Document distro build deps: `gtk4`, `libadwaita`, GStreamer (`gst-plugins-good`, `gst-libav`), `gst-thumbnailers` for Images-dialog video thumbs, Rust
+- `packaging/install-data.sh` installs binary, icons, desktop, metainfo
+- Arch `depends`: `gtk4`, `libadwaita`, GStreamer (`gst-plugins-good`, `gst-libav`), `gst-thumbnailers`
+- AppImage bundles GStreamer plugins for playback. Video thumbs use the host `.thumbnailer` helpers (do not bundle glycin).
 
 ## Polish checklist
 

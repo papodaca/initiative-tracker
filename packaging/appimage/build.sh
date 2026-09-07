@@ -10,6 +10,8 @@
 # Requires Ubuntu 26.04-class deps: rustc, cargo, pkg-config,
 # GTK4/libadwaita, GStreamer plugins (base, good, libav) for scene video,
 # curl, file, patchelf, python3.
+# Video list thumbnails are not bundled (gst-video-thumbnailer pulls glycin/bwrap).
+# At runtime the app uses the host XDG thumbnailers, same as Files.
 #
 # AppImages built on Ubuntu 26.04 target that glibc floor (GTK 4.22 / libadwaita 1.9).
 set -euo pipefail

@@ -11,7 +11,7 @@ Targets GNOME 50 (GTK 4.22+, libadwaita 1.9+).
 
 ## Native build
 
-Distro packages (names vary): Rust toolchain, GTK 4.22+, libadwaita 1.9+, pkg-config, and GStreamer (`gst-plugins-good` plus `gst-libav` / `gstreamer1.0-libav`) so scene video can play. Video list thumbnails use the same `.thumbnailer` helpers as Files (`gst-thumbnailers` or Totem). Optional: `desktop-file-utils`, `appstreamcli` to validate metadata.
+Distro packages (names vary): Rust toolchain, GTK 4.22+, libadwaita 1.9+, pkg-config, and GStreamer (`gst-plugins-good` plus `gst-libav` / `gstreamer1.0-libav`) so scene video can play. Video list thumbnails use the same `.thumbnailer` helpers as Files: Arch `gst-thumbnailers`, Ubuntu `gst-video-thumbnailer`, or Totem. Optional: `desktop-file-utils`, `appstreamcli` to validate metadata.
 
 ```bash
 cargo test
@@ -44,7 +44,7 @@ flatpak-builder --user --install --force-clean packaging/flatpak/build-dir \
 flatpak run im.apodaca.InitiativeTracker
 ```
 
-The sandbox does not grant home or Pictures access. Add Images uses `GtkFileDialog` (document portal) and copies selected files into `$XDG_DATA_HOME/im.apodaca.InitiativeTracker/images/` so Presenter thumbnails survive a restart. Videos use the same picker and loop on the Presenter background via GStreamer. GNOME 50 ships patented codecs through the runtime `codecs-extra` extension (no `ffmpeg-full` stanza). Scene audio uses PulseAudio/PipeWire.
+The sandbox does not grant home or Pictures access. Add Images uses `GtkFileDialog` (document portal) and copies selected files into `$XDG_DATA_HOME/im.apodaca.InitiativeTracker/images/` so Presenter thumbnails survive a restart. Videos use the same picker and loop on the Presenter background via GStreamer. The sandbox cannot see the host Files thumbnailers, so the manifest builds `totem-video-thumbnailer` for Images dialog frames. GNOME 50 ships patented codecs through the runtime `codecs-extra` extension (no `ffmpeg-full` stanza). Scene audio uses PulseAudio/PipeWire.
 
 ## AppImage
 
@@ -54,7 +54,7 @@ Built against Ubuntu 26.04-class GTK. From `packaging/appimage`:
 ./build.sh
 ```
 
-That writes `InitiativeTracker-$VERSION-$ARCH.AppImage` in the same directory. `./smoke-docker.sh` builds inside `ubuntu:26.04` the way CI does.
+That writes `InitiativeTracker-$VERSION-$ARCH.AppImage` in the same directory. `./smoke-docker.sh` builds inside `ubuntu:26.04` the way CI does. Scene video codecs are bundled. Video list thumbnails use the host XDG helpers (`gst-video-thumbnailer` on Ubuntu 26.04 / GNOME) rather than shipping glycin inside the image.
 
 ## Arch
 
