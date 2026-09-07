@@ -9,6 +9,7 @@ use gdk_pixbuf::Pixbuf;
 use gtk::gdk::Texture;
 use gtk::gio;
 use gtk::glib;
+use gtk::glib::object::SendWeakRef;
 use gtk::prelude::EditableExt;
 use std::cell::{Cell, RefCell};
 use std::path::PathBuf;
@@ -16,6 +17,7 @@ use std::rc::Rc;
 
 use crate::domain::{is_video_path, SceneImage, VIDEO_SUFFIXES};
 use crate::persistence::StateStore;
+use crate::video_thumb;
 
 const IMAGE_SUFFIXES: &[&str] = &[
     "avif", "ico", "jfif", "svg", "png", "jpeg", "jpg", "webp", "bmp", "gif",
@@ -318,25 +320,22 @@ fn ellipsize_editable_label(label: &gtk::EditableLabel) {
 fn fill_thumb_slot(thumb_slot: &gtk::Box, image: &SceneImage) {
     let path_ok = PathBuf::from(&image.path).is_file();
     if path_ok && is_video_path(&image.path) {
-        thumb_slot.append(&thumb_icon("video-x-generic-symbolic"));
+        if let Some(texture) = video_thumb::cached_thumbnail(&image.path)
+            .and_then(|png| load_thumbnail_texture(&png.to_string_lossy()))
+        {
+            thumb_slot.append(&thumb_picture(&texture));
+        } else {
+            thumb_slot.append(&thumb_icon("video-x-generic-symbolic"));
+            queue_video_thumbnail(thumb_slot, &image.path);
+        }
         return;
     }
 
-    let texture = path_ok.then(|| load_thumbnail_texture(&image.path)).flatten();
+    let texture = path_ok
+        .then(|| load_thumbnail_texture(&image.path))
+        .flatten();
     match texture {
-        Some(texture) => {
-            let thumb = gtk::Picture::builder()
-                .paintable(&texture)
-                .content_fit(gtk::ContentFit::Contain)
-                .can_shrink(false)
-                .halign(gtk::Align::Center)
-                .valign(gtk::Align::Center)
-                .hexpand(true)
-                .vexpand(true)
-                .css_classes(["scene-image-thumb-picture"])
-                .build();
-            thumb_slot.append(&thumb);
-        }
+        Some(texture) => thumb_slot.append(&thumb_picture(&texture)),
         None => {
             eprintln!(
                 "initiative-tracker: thumbnail unavailable for {}: {}",
@@ -345,6 +344,46 @@ fn fill_thumb_slot(thumb_slot: &gtk::Box, image: &SceneImage) {
             thumb_slot.append(&thumb_icon("image-missing-symbolic"));
         }
     }
+}
+
+fn thumb_picture(texture: &Texture) -> gtk::Picture {
+    gtk::Picture::builder()
+        .paintable(texture)
+        .content_fit(gtk::ContentFit::Contain)
+        .can_shrink(false)
+        .halign(gtk::Align::Center)
+        .valign(gtk::Align::Center)
+        .hexpand(true)
+        .vexpand(true)
+        .css_classes(["scene-image-thumb-picture"])
+        .build()
+}
+
+fn queue_video_thumbnail(thumb_slot: &gtk::Box, path: &str) {
+    let path = path.to_string();
+    let slot: SendWeakRef<gtk::Box> = thumb_slot.downgrade().into();
+    std::thread::spawn(move || {
+        let png = video_thumb::generate_thumbnail(&path);
+        glib::idle_add_once(move || {
+            let Some(slot) = slot.upgrade() else {
+                return;
+            };
+            let Some(png) = png else {
+                return;
+            };
+            let Some(texture) = load_thumbnail_texture(&png.to_string_lossy()) else {
+                eprintln!(
+                    "initiative-tracker: video thumbnail unreadable: {}",
+                    png.display()
+                );
+                return;
+            };
+            while let Some(child) = slot.first_child() {
+                slot.remove(&child);
+            }
+            slot.append(&thumb_picture(&texture));
+        });
+    });
 }
 
 fn thumb_icon(icon_name: &str) -> gtk::Image {

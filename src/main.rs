@@ -6,6 +6,7 @@ mod media_ui;
 mod persistence;
 mod presenter_window;
 mod theme;
+mod video_thumb;
 mod window;
 
 use application::InitiativeTrackerApplication;
