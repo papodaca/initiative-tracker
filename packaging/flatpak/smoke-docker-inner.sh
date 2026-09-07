@@ -7,7 +7,7 @@ ROOT=${IT_DOCKER_ROOT:-/workspace}
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
 apt-get install -y --no-install-recommends \
-  ca-certificates curl gnupg \
+  ca-certificates curl gnupg xz-utils \
   flatpak flatpak-builder ostree elfutils \
   git sudo
 
