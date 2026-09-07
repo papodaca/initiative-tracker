@@ -8,7 +8,8 @@
 # Produces: InitiativeTracker-$VERSION-$ARCH.AppImage in this directory
 # (ARCH is uname -m: x86_64 or aarch64).
 # Requires Ubuntu 26.04-class deps: rustc, cargo, pkg-config,
-# GTK4/libadwaita, curl, file, patchelf, python3.
+# GTK4/libadwaita, GStreamer plugins (base, good, libav) for scene video,
+# curl, file, patchelf, python3.
 #
 # AppImages built on Ubuntu 26.04 target that glibc floor (GTK 4.22 / libadwaita 1.9).
 set -euo pipefail
@@ -222,6 +223,121 @@ patch_apprun_hooks() {
   sed -i '/^export GTK_THEME=/d' "${hook}"
 }
 
+# GtkMediaFile loads plugins at runtime (not ELF NEEDED). Copy codec plugins
+# from the Ubuntu packages we install, then deploy their non-glibc deps.
+# Do not copy all of /usr/lib/*/gstreamer-1.0: gst-plugins-bad pulls
+# tensorflow, SRT, VA-API, and glibc extras. linuxdeploy's bundled strip also
+# cannot handle Ubuntu 26.04 glibc RELR (`.relr.dyn`) if libresolv sneaks in.
+bundle_gstreamer() {
+  local multiarch src dst lib base
+  if command -v dpkg-architecture >/dev/null 2>&1; then
+    multiarch=$(dpkg-architecture -qDEB_HOST_MULTIARCH)
+  else
+    case "${HOST_ARCH}" in
+      x86_64) multiarch=x86_64-linux-gnu ;;
+      aarch64) multiarch=aarch64-linux-gnu ;;
+      *)
+        echo "Cannot resolve multiarch for GStreamer plugins (${HOST_ARCH})" >&2
+        exit 1
+        ;;
+    esac
+  fi
+
+  src="/usr/lib/${multiarch}/gstreamer-1.0"
+  dst="${APPDIR}/usr/lib/${multiarch}/gstreamer-1.0"
+  mkdir -p "${dst}"
+
+  copy_gst_plugins_from_pkg() {
+    local pkg=$1 file
+    if ! dpkg -s "${pkg}" >/dev/null 2>&1; then
+      echo "initiative-tracker: skipping missing ${pkg}" >&2
+      return 1
+    fi
+    while IFS= read -r file; do
+      case "${file}" in
+        */gstreamer-1.0/*)
+          if [[ -f ${file} || -L ${file} ]]; then
+            cp -a "${file}" "${dst}/"
+          fi
+          ;;
+      esac
+    done < <(dpkg -L "${pkg}")
+  }
+
+  copy_gst_plugins_from_pkg gstreamer1.0-plugins-base || true
+  copy_gst_plugins_from_pkg gstreamer1.0-plugins-good || true
+  copy_gst_plugins_from_pkg gstreamer1.0-libav || true
+  copy_gst_plugins_from_pkg gstreamer1.0-gl || true
+  copy_gst_plugins_from_pkg gstreamer1.0-gtk4 || true
+
+  if [[ ! -d ${src} ]]; then
+    echo "GStreamer plugin dir missing: ${src}" >&2
+    echo "Install gstreamer1.0-plugins-base, gstreamer1.0-plugins-good, gstreamer1.0-libav" >&2
+    exit 1
+  fi
+  if ! find "${dst}" -name '*.so' | grep -q .; then
+    echo "No GStreamer plugins copied into ${dst}" >&2
+    exit 1
+  fi
+
+  skip_system_lib() {
+    local name
+    name=$(basename "$1")
+    case "${name}" in
+      ld-linux*|ld-*.so*|libc.so*|libm.so*|libpthread.so*|libdl.so*|librt.so*| \
+      libresolv.so*|libnss_*|libnsl.so*|libutil.so*|libanl.so*|libcrypt.so*| \
+      libthread_db.so*|libBrokenLocale.so*|libGL.so*|libGLdispatch.so*| \
+      libGLX*.so*|libOpenGL.so*|libEGL.so*|libvulkan.so*|libva.so*|libva-*.so*| \
+      libvdpau.so*|libnvidia-*|libcuda.so*|libdrm.so*|libdrm_*)
+        return 0
+        ;;
+    esac
+    return 1
+  }
+
+  local libs=()
+  while IFS= read -r lib; do
+    [[ -n ${lib} && -f ${lib} ]] || continue
+    if skip_system_lib "${lib}"; then
+      continue
+    fi
+    libs+=(--library "${lib}")
+  done < <(
+    find "${dst}" -name '*.so' -print0 |
+      xargs -0 ldd 2>/dev/null |
+      awk '/=> \// { print $3 }' |
+      sort -u
+  )
+  if ((${#libs[@]} > 0)); then
+    (
+      cd "${SCRIPT_DIR}"
+      # Host glibc uses RELR; linuxdeploy's strip cannot process those objects.
+      env APPIMAGE_EXTRACT_AND_RUN=1 NO_STRIP=1 \
+        "${LINUXDEPLOY}" --appdir "${APPDIR}" \
+        --exclude-library='libc.so*' \
+        --exclude-library='libm.so*' \
+        --exclude-library='libpthread.so*' \
+        --exclude-library='libdl.so*' \
+        --exclude-library='librt.so*' \
+        --exclude-library='libresolv.so*' \
+        --exclude-library='ld-linux*.so*' \
+        --exclude-library='libnss_*.so*' \
+        --exclude-library='libvulkan.so*' \
+        --exclude-library='libGLX_mesa.so*' \
+        --exclude-library='libEGL_mesa.so*' \
+        --exclude-library='libgallium*.so*' \
+        --exclude-library='libnvidia-*.so*' \
+        "${libs[@]}"
+    )
+  fi
+
+  mkdir -p "${APPDIR}/apprun-hooks"
+  cat > "${APPDIR}/apprun-hooks/gstreamer.sh" <<EOF
+export GST_PLUGIN_SYSTEM_PATH="\${APPDIR}/usr/lib/${multiarch}/gstreamer-1.0"
+export GST_PLUGIN_PATH="\${GST_PLUGIN_SYSTEM_PATH}"
+EOF
+}
+
 # --- main -------------------------------------------------------------------
 
 VERSION=$(appimage_version)
@@ -284,6 +400,7 @@ chmod +x "${plugin_dest}"
     --exclude-library='libnvidia-*.so*'
 )
 
+bundle_gstreamer
 patch_apprun_hooks
 strip_graphics_driver_libs
 

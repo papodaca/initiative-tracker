@@ -43,7 +43,7 @@ Make the GTK app ship-ready on **GNOME 50** Flatpak while **keeping the Tauri fr
 ### Native
 
 - `meson install` installs binary, icons, desktop, metainfo
-- Document distro build deps: `gtk4`, `libadwaita`, Blueprint compiler, Rust
+- Document distro build deps: `gtk4`, `libadwaita`, GStreamer (`gst-plugins-good`, `gst-libav`), Rust
 
 ## Polish checklist
 

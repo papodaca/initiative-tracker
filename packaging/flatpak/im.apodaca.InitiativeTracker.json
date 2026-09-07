@@ -15,14 +15,6 @@
     "--socket=pulseaudio",
     "--device=dri"
   ],
-  "add-extensions": {
-    "org.freedesktop.Platform.ffmpeg-full": {
-      "directory": "lib/ffmpeg",
-      "add-ld-path": ".",
-      "version": "25.08",
-      "autodelete": false
-    }
-  },
   "build-options": {
     "append-path": "/usr/lib/sdk/rust-stable/bin",
     "build-args": [
@@ -52,8 +44,7 @@
       "build-commands": [
         "cargo build --release --locked",
         "install -Dm755 target/release/initiative-tracker-gtk /app/bin/initiative-tracker-gtk",
-        "bash packaging/install-data.sh /app",
-        "mkdir -p /app/lib/ffmpeg"
+        "bash packaging/install-data.sh /app"
       ],
       "sources": [
         {

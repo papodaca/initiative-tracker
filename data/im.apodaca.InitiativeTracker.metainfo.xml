@@ -8,9 +8,9 @@
   <summary>Track initiative for RPG campaigns (GTK preview)</summary>
   <description>
     <p>
-      Track initiative, health, and scene images for tabletop RPG campaigns.
-      Open a Presenter window on a secondary display for your players while you
-      run combat from the Console.
+      Track initiative, health, and scene images or videos for tabletop RPG
+      campaigns. Open a Presenter window on a secondary display for your
+      players while you run combat from the Console.
     </p>
     <p>
       This is the GTK4 / libadwaita frontend targeting GNOME 50. The Tauri app

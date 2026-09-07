@@ -65,6 +65,14 @@ flatpak install -y --user flathub \
   org.gnome.Sdk//50 \
   org.freedesktop.Sdk.Extension.rust-stable//25.08
 cd "${ROOT}/packaging/flatpak"
+# Ostree refuses commits when free space is under 3% of the *whole*
+# filesystem. Bind-mounted CI disks trip that for a few hundred kB.
+mkdir -p repo
+if [[ ! -f repo/config ]]; then
+  ostree init --repo=repo --mode=archive
+fi
+ostree --repo=repo config set core.min-free-space-percent 0
+ostree --repo=repo config set core.min-free-space-size 1MB
 flatpak-builder --user --force-clean --disable-rofiles-fuse --repo=repo build-dir \
   im.apodaca.InitiativeTracker.json
 EOF
@@ -78,6 +86,8 @@ chown -R builder:builder "${files_root}/share/app-info"
 sudo -u builder env HOME=/home/builder ROOT="${ROOT}" VERSION="${VERSION}" \
   bash -euo pipefail <<'EOF'
 cd "${ROOT}/packaging/flatpak"
+ostree --repo=repo config set core.min-free-space-percent 0
+ostree --repo=repo config set core.min-free-space-size 1MB
 flatpak build-export repo build-dir
 flatpak build-bundle repo \
   "im.apodaca.InitiativeTracker-${VERSION}.flatpak" \

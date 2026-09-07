@@ -13,6 +13,10 @@ apt-get install -y --no-install-recommends \
   rustc cargo \
   python3 \
   libgtk-4-dev libadwaita-1-dev \
+  gstreamer1.0-plugins-base \
+  gstreamer1.0-plugins-good \
+  gstreamer1.0-libav \
+  gstreamer1.0-gl \
   gobject-introspection \
   gir1.2-gtk-4.0 gir1.2-adw-1 \
   libglib2.0-bin librsvg2-common \
@@ -25,6 +29,7 @@ apt-get install -y --no-install-recommends libgirepository-2.0-dev \
   || true
 
 apt-get install -y --no-install-recommends libgtk-4-bin || true
+apt-get install -y --no-install-recommends gstreamer1.0-gtk4 || true
 apt-get install -y --no-install-recommends libgdk-pixbuf-2.0-bin \
   || apt-get install -y --no-install-recommends libgdk-pixbuf2.0-bin \
   || true

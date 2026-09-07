@@ -11,7 +11,7 @@ Targets GNOME 50 (GTK 4.22+, libadwaita 1.9+).
 
 ## Native build
 
-Distro packages (names vary): Rust toolchain, GTK 4.22+, libadwaita 1.9+, pkg-config. Optional: `desktop-file-utils`, `appstreamcli` to validate metadata.
+Distro packages (names vary): Rust toolchain, GTK 4.22+, libadwaita 1.9+, pkg-config, and GStreamer (`gst-plugins-good` plus `gst-libav` / `gstreamer1.0-libav`) so scene video can play. Optional: `desktop-file-utils`, `appstreamcli` to validate metadata.
 
 ```bash
 cargo test
@@ -44,7 +44,7 @@ flatpak-builder --user --install --force-clean packaging/flatpak/build-dir \
 flatpak run im.apodaca.InitiativeTracker
 ```
 
-The sandbox does not grant home or Pictures access. Add Images uses `GtkFileDialog` (document portal) and copies selected files into `$XDG_DATA_HOME/im.apodaca.InitiativeTracker/images/` so Presenter thumbnails survive a restart. Videos use the same picker and loop on the Presenter background via GStreamer.
+The sandbox does not grant home or Pictures access. Add Images uses `GtkFileDialog` (document portal) and copies selected files into `$XDG_DATA_HOME/im.apodaca.InitiativeTracker/images/` so Presenter thumbnails survive a restart. Videos use the same picker and loop on the Presenter background via GStreamer. GNOME 50 ships patented codecs through the runtime `codecs-extra` extension (no `ffmpeg-full` stanza). Scene audio uses PulseAudio/PipeWire.
 
 ## AppImage
 

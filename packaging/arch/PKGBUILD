@@ -33,6 +33,10 @@ depends=(
   gdk-pixbuf2
   gcc-libs
   hicolor-icon-theme
+  gstreamer
+  gst-plugins-base
+  gst-plugins-good
+  gst-libav
 )
 
 pkgver() {
