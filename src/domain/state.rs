@@ -227,6 +227,14 @@ impl AppState {
     pub fn normalize(&mut self) -> bool {
         let mut changed = false;
 
+        if !self.display_size.is_finite() || self.display_size < 1.0 || self.display_size > 5.0 {
+            self.display_size = self.display_size.clamp(1.0, 5.0);
+            if !self.display_size.is_finite() {
+                self.display_size = 1.0;
+            }
+            changed = true;
+        }
+
         if self.campaigns.is_empty() {
             self.campaigns.push(DEFAULT_CAMPAIGN_NAME.to_string());
             changed = true;

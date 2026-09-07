@@ -338,7 +338,11 @@ pub fn recover_path_from_file_url(url: &str) -> Option<String> {
     }
     if let Some(rest) = url.strip_prefix("file://") {
         let decoded = percent_decode_str(rest).decode_utf8().ok()?.into_owned();
-        return Some(decoded);
+        // Require an absolute path; reject relative traversal (e.g. file://../../etc).
+        if decoded.starts_with('/') {
+            return Some(decoded);
+        }
+        return None;
     }
     // asset://localhost/<percent-encoded-path>
     if let Some(rest) = url
@@ -346,17 +350,11 @@ pub fn recover_path_from_file_url(url: &str) -> Option<String> {
         .or_else(|| url.strip_prefix("https://asset.localhost/"))
     {
         let decoded = percent_decode_str(rest).decode_utf8().ok()?.into_owned();
+        // Only accept absolute paths; the leading %2F encodes the root '/'.
         if decoded.starts_with('/') {
             return Some(decoded);
         }
-        // Sometimes the encoded form already includes leading %2F only.
-        if !decoded.is_empty() {
-            return Some(if decoded.starts_with('/') {
-                decoded
-            } else {
-                format!("/{decoded}")
-            });
-        }
+        return None;
     }
     None
 }
@@ -378,6 +376,29 @@ mod tests {
     #[test]
     fn skip_opaque_url() {
         assert!(recover_path_from_file_url("blob:xyz").is_none());
+    }
+
+    #[test]
+    fn reject_path_traversal_in_file_url() {
+        // file:// with a relative path must be rejected.
+        assert!(recover_path_from_file_url("file://../../etc/passwd").is_none());
+        assert!(recover_path_from_file_url("file://relative/path").is_none());
+        // Absolute file:// must still work.
+        assert_eq!(
+            recover_path_from_file_url("file:///home/user/img.png").as_deref(),
+            Some("/home/user/img.png")
+        );
+    }
+
+    #[test]
+    fn reject_path_traversal_in_asset_url() {
+        // Encoded traversal: asset://localhost/..%2F..%2Fetc%2Fpasswd → ../../etc/passwd
+        assert!(recover_path_from_file_url(
+            "asset://localhost/..%2F..%2Fetc%2Fpasswd"
+        )
+        .is_none());
+        // Non-absolute decoded path must be rejected.
+        assert!(recover_path_from_file_url("asset://localhost/relative").is_none());
     }
 
     #[test]
