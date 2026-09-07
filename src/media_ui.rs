@@ -26,61 +26,128 @@ const THUMB_HEIGHT: i32 = 90;
 
 type SharedStore = Rc<RefCell<Option<StateStore>>>;
 
-pub struct SceneImageList {
-    pub container: gtk::Box,
+/// A button that opens an `adw::Dialog` containing the scene-image list.
+///
+/// `bind_store` and `refresh` keep the same contract as the old inline list
+/// so `window.rs` only needs to swap the appended widget.
+pub struct SceneImageButton {
+    pub button: gtk::Button,
     list: gtk::ListBox,
     store: SharedStore,
 }
 
-impl SceneImageList {
-    /// Build the list UI before the real [`StateStore`] is available.
+impl SceneImageButton {
+    /// Build the button and its backing dialog before the [`StateStore`] is available.
     pub fn build() -> Self {
         let store: SharedStore = Rc::new(RefCell::new(None));
-
-        let container = gtk::Box::builder()
-            .orientation(gtk::Orientation::Vertical)
-            .spacing(8)
-            .build();
 
         let list = gtk::ListBox::builder()
             .selection_mode(gtk::SelectionMode::None)
             .css_classes(["boxed-list", "scene-image-list"])
             .build();
 
-        let add_btn = gtk::Button::builder()
+        let placeholder = gtk::Label::builder()
+            .label("No scene images yet. Add some to show them on the Presenter.")
+            .wrap(true)
+            .justify(gtk::Justification::Center)
+            .margin_top(24)
+            .margin_bottom(24)
+            .margin_start(12)
+            .margin_end(12)
+            .css_classes(["dim-label"])
+            .build();
+        list.set_placeholder(Some(&placeholder));
+
+        let add_content = adw::ButtonContent::builder()
+            .icon_name("list-add-symbolic")
             .label("Add Images")
+            .build();
+        let add_btn = gtk::Button::builder()
+            .child(&add_content)
             .tooltip_text("Add scene images (copied into app data)")
-            .css_classes(["success"])
-            .halign(gtk::Align::Start)
+            .css_classes(["suggested-action"])
             .build();
         add_btn.update_property(&[gtk::accessible::Property::Label("Add scene images")]);
 
-        container.append(&list);
-        container.append(&add_btn);
+        let hint = gtk::Label::builder()
+            .label("Click a thumbnail to show it on the Presenter. Click a name to rename.")
+            .wrap(true)
+            .xalign(0.0)
+            .css_classes(["dim-label", "caption"])
+            .build();
+
+        let dialog_content = gtk::Box::builder()
+            .orientation(gtk::Orientation::Vertical)
+            .spacing(8)
+            .margin_top(8)
+            .margin_bottom(12)
+            .margin_start(12)
+            .margin_end(12)
+            .build();
+
+        let scrolled = gtk::ScrolledWindow::builder()
+            .hscrollbar_policy(gtk::PolicyType::Never)
+            .propagate_natural_height(true)
+            .vexpand(true)
+            .build();
+        scrolled.set_child(Some(&list));
+
+        dialog_content.append(&hint);
+        dialog_content.append(&scrolled);
+
+        let header = adw::HeaderBar::new();
+        header.pack_start(&add_btn);
+
+        let toolbar = adw::ToolbarView::new();
+        toolbar.add_top_bar(&header);
+        toolbar.set_content(Some(&dialog_content));
+
+        let dialog = adw::Dialog::builder()
+            .title("Scene Images")
+            .child(&toolbar)
+            .content_width(480)
+            .content_height(560)
+            .build();
+
+        // "Images…" button that opens the dialog; sits in the section heading row.
+        let button = gtk::Button::builder()
+            .label("Images…")
+            .tooltip_text("Manage scene images")
+            .valign(gtk::Align::Center)
+            .build();
+        button.update_property(&[gtk::accessible::Property::Label("Manage scene images")]);
+
+        button.connect_clicked(glib::clone!(
+            #[strong]
+            dialog,
+            move |btn| {
+                let Some(parent) = btn.root().and_downcast::<gtk::Window>() else {
+                    eprintln!("initiative-tracker: Images dialog needs a window parent");
+                    return;
+                };
+                dialog.present(Some(&parent));
+            }
+        ));
 
         add_btn.connect_clicked(glib::clone!(
             #[strong]
             store,
             #[weak]
-            container,
+            dialog,
             move |_| {
                 let Some(bound) = store.borrow().clone() else {
                     eprintln!("initiative-tracker: Add Images before store is ready");
                     return;
                 };
-                let Some(parent) = container.root().and_downcast::<gtk::Window>() else {
+                let Some(parent) = dialog.root().and_downcast::<gtk::Window>() else {
                     eprintln!("initiative-tracker: Add Images needs a window parent");
                     return;
                 };
-                open_images_dialog(&parent, bound);
+                open_images_file_dialog(&parent, bound);
             }
         ));
 
-        Self {
-            container,
-            list,
-            store,
-        }
+        Self { button, list, store }
     }
 
     pub fn bind_store(&self, store: StateStore) {
@@ -117,8 +184,10 @@ fn build_image_row(image: &SceneImage, store: &StateStore) -> gtk::ListBoxRow {
         .margin_end(6)
         .build();
 
-    // Fixed-size slot: loading a scaled Texture (not set_filename) so GtkPicture
-    // does not adopt the full-resolution image's natural size and stretch the row.
+    // Fixed 120x90 slot. The texture is pre-scaled to fit that box and the
+    // Picture has can_shrink=false, so its natural size is the texture size.
+    // (With can_shrink=true GtkPicture reports width-for-height from the
+    // aspect ratio, which made wide images push the name column around.)
     let thumb_slot = gtk::Box::builder()
         .orientation(gtk::Orientation::Vertical)
         .width_request(THUMB_WIDTH)
@@ -131,30 +200,42 @@ fn build_image_row(image: &SceneImage, store: &StateStore) -> gtk::ListBoxRow {
         .build();
     thumb_slot.set_overflow(gtk::Overflow::Hidden);
 
-    let thumb = gtk::Picture::builder()
-        .content_fit(gtk::ContentFit::Contain)
-        .can_shrink(true)
-        .width_request(THUMB_WIDTH)
-        .height_request(THUMB_HEIGHT)
-        .hexpand(false)
-        .vexpand(false)
-        .css_classes(["scene-image-thumb-picture"])
-        .build();
-    if PathBuf::from(&image.path).is_file() {
-        match load_thumbnail_texture(&image.path) {
-            Some(texture) => thumb.set_paintable(Some(&texture)),
-            None => eprintln!(
-                "initiative-tracker: thumbnail decode failed for {}: {}",
-                image.name, image.path
-            ),
+    let texture = PathBuf::from(&image.path)
+        .is_file()
+        .then(|| load_thumbnail_texture(&image.path))
+        .flatten();
+    match texture {
+        Some(texture) => {
+            let thumb = gtk::Picture::builder()
+                .paintable(&texture)
+                .content_fit(gtk::ContentFit::Contain)
+                .can_shrink(false)
+                .halign(gtk::Align::Center)
+                .valign(gtk::Align::Center)
+                .hexpand(true)
+                .vexpand(true)
+                .css_classes(["scene-image-thumb-picture"])
+                .build();
+            thumb_slot.append(&thumb);
         }
-    } else {
-        eprintln!(
-            "initiative-tracker: thumbnail missing for {}: {}",
-            image.name, image.path
-        );
+        None => {
+            eprintln!(
+                "initiative-tracker: thumbnail unavailable for {}: {}",
+                image.name, image.path
+            );
+            let missing = gtk::Image::builder()
+                .icon_name("image-missing-symbolic")
+                .pixel_size(32)
+                .halign(gtk::Align::Center)
+                .valign(gtk::Align::Center)
+                .hexpand(true)
+                .vexpand(true)
+                .css_classes(["dim-label"])
+                .build();
+            thumb_slot.append(&missing);
+        }
     }
-    thumb_slot.set_tooltip_text(Some(&format!("Make {} active", image.name)));
+    thumb_slot.set_tooltip_text(Some(&format!("Show {} on the Presenter", image.name)));
 
     let click = gtk::GestureClick::new();
     let id = image.id.clone();
@@ -168,18 +249,49 @@ fn build_image_row(image: &SceneImage, store: &StateStore) -> gtk::ListBoxRow {
         }
     ));
     thumb_slot.add_controller(click);
-    thumb_slot.append(&thumb);
 
     let name = gtk::EditableLabel::new(&image.name);
     name.add_css_class("scene-image-name");
     name.set_hexpand(true);
     name.set_alignment(0.0);
+    name.set_tooltip_text(Some(&image.name));
+    ellipsize_editable_label(&name);
     wire_rename(&name, store, &image.id);
 
     outer.append(&thumb_slot);
     outer.append(&name);
+
+    if image.active {
+        let check = gtk::Image::builder()
+            .icon_name("object-select-symbolic")
+            .tooltip_text("Shown on the Presenter")
+            .valign(gtk::Align::Center)
+            .css_classes(["accent"])
+            .build();
+        outer.append(&check);
+    }
+
     row.set_child(Some(&outer));
     row
+}
+
+/// `GtkEditableLabel` has no ellipsize property; its display label is the
+/// `GtkLabel` inside the internal `GtkStack`. Without this a long file name
+/// forces the whole dialog wider than the window.
+fn ellipsize_editable_label(label: &gtk::EditableLabel) {
+    let mut child = label.first_child();
+    while let Some(widget) = child {
+        if let Some(stack) = widget.downcast_ref::<gtk::Stack>() {
+            let mut page = stack.first_child();
+            while let Some(inner) = page {
+                if let Some(text) = inner.downcast_ref::<gtk::Label>() {
+                    text.set_ellipsize(gtk::pango::EllipsizeMode::End);
+                }
+                page = inner.next_sibling();
+            }
+        }
+        child = widget.next_sibling();
+    }
 }
 
 fn load_thumbnail_texture(path: &str) -> Option<Texture> {
@@ -210,7 +322,7 @@ fn wire_rename(label: &gtk::EditableLabel, store: &StateStore, id: &str) {
     );
 }
 
-fn open_images_dialog(parent: &impl IsA<gtk::Window>, store: StateStore) {
+fn open_images_file_dialog(parent: &impl IsA<gtk::Window>, store: StateStore) {
     let filter = gtk::FileFilter::new();
     filter.set_name(Some("Images"));
     for suffix in IMAGE_SUFFIXES {

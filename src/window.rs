@@ -10,7 +10,7 @@ use crate::combat_ui::{
 };
 use crate::dialogs::{present_add_campaign, present_settings};
 use crate::domain::to_title_case;
-use crate::media_ui::SceneImageList;
+use crate::media_ui::SceneImageButton;
 use crate::persistence::StateStore;
 use crate::presenter_window::PresenterWindow;
 use crate::theme::apply_theme;
@@ -33,7 +33,7 @@ mod imp {
         pub open_btn: gtk::Button,
         pub fullscreen_btn: gtk::Button,
         pub close_btn: gtk::Button,
-        pub image_list: SceneImageList,
+        pub image_btn: SceneImageButton,
     }
 
     impl std::fmt::Debug for PresenterControls {
@@ -189,18 +189,30 @@ mod imp {
     impl AdwApplicationWindowImpl for InitiativeTrackerWindow {}
 }
 
-fn build_presenter_section(window: &InitiativeTrackerWindow) -> gtk::Expander {
-    let expander = gtk::Expander::builder()
-        .label("Presenter & Media")
-        .expanded(true)
+fn build_presenter_section(window: &InitiativeTrackerWindow) -> gtk::Box {
+    // Same shape as the Combatants section below: heading row with an action
+    // button on the right, then full-width homogeneous rows.
+    let section = gtk::Box::builder()
+        .orientation(gtk::Orientation::Vertical)
+        .spacing(6)
         .build();
 
-    let content = gtk::Box::builder()
-        .orientation(gtk::Orientation::Vertical)
-        .spacing(8)
-        .margin_top(8)
-        .margin_bottom(8)
+    let label = gtk::Label::builder()
+        .label("Presenter & Media")
+        .xalign(0.0)
+        .hexpand(true)
+        .css_classes(["heading"])
         .build();
+
+    // Store is bound in refresh_from_store once StateStore loads.
+    let image_btn = SceneImageButton::build();
+
+    let heading_row = gtk::Box::builder()
+        .orientation(gtk::Orientation::Horizontal)
+        .spacing(6)
+        .build();
+    heading_row.append(&label);
+    heading_row.append(&image_btn.button);
 
     let open_btn = gtk::Button::builder()
         .label("Open Presenter Window")
@@ -208,9 +220,9 @@ fn build_presenter_section(window: &InitiativeTrackerWindow) -> gtk::Expander {
         .css_classes(["suggested-action"])
         .build();
 
-    let row = gtk::Box::builder()
+    let controls_row = gtk::Box::builder()
         .orientation(gtk::Orientation::Horizontal)
-        .spacing(8)
+        .spacing(6)
         .homogeneous(true)
         .build();
 
@@ -222,26 +234,15 @@ fn build_presenter_section(window: &InitiativeTrackerWindow) -> gtk::Expander {
     let close_btn = gtk::Button::with_label("Close");
     close_btn.set_tooltip_text(Some("Hide Presenter window"));
     close_btn.add_css_class("destructive-action");
+    close_btn.add_css_class("pill");
     close_btn.set_sensitive(false);
 
-    row.append(&fullscreen_btn);
-    row.append(&close_btn);
+    controls_row.append(&fullscreen_btn);
+    controls_row.append(&close_btn);
 
-    let hint = gtk::Label::builder()
-        .label("Drag the Presenter to the player display, then Fullscreen.")
-        .wrap(true)
-        .xalign(0.0)
-        .css_classes(["dim-label"])
-        .build();
-
-    // Store is bound in refresh_from_store once StateStore loads.
-    let image_list = SceneImageList::build();
-
-    content.append(&open_btn);
-    content.append(&row);
-    content.append(&image_list.container);
-    content.append(&hint);
-    expander.set_child(Some(&content));
+    section.append(&heading_row);
+    section.append(&open_btn);
+    section.append(&controls_row);
 
     open_btn.connect_clicked(glib::clone!(
         #[weak]
@@ -269,11 +270,11 @@ fn build_presenter_section(window: &InitiativeTrackerWindow) -> gtk::Expander {
         open_btn,
         fullscreen_btn,
         close_btn,
-        image_list,
+        image_btn,
     });
     window.sync_presenter_controls();
 
-    expander
+    section
 }
 
 glib::wrapper! {
@@ -499,10 +500,9 @@ impl InitiativeTrackerWindow {
 
         let add = AddCombatantForm::build(store.clone());
         let visibility = VisibilityToggles::build(store.clone(), guard);
-        let list = CombatantList::build();
+        let list = CombatantList::build(&add.button);
         let footer = CombatFooter::build(store);
 
-        body.append(&add.expander);
         body.append(&visibility.container);
         body.append(&list.container);
         toolbar.add_bottom_bar(&footer.action_bar);
@@ -556,8 +556,8 @@ impl InitiativeTrackerWindow {
         }
 
         if let Some(controls) = imp.presenter_controls.get() {
-            controls.image_list.bind_store(store.clone());
-            controls.image_list.refresh(&camp.images);
+            controls.image_btn.bind_store(store.clone());
+            controls.image_btn.refresh(&camp.images);
         }
     }
 

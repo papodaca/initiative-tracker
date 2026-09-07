@@ -32,111 +32,164 @@ pub fn load_console_styles() {
 }
 
 pub struct AddCombatantForm {
-    pub expander: gtk::Expander,
+    pub button: gtk::Button,
 }
 
 impl AddCombatantForm {
     pub fn build(store: StateStore) -> Self {
-        let expander = gtk::Expander::builder()
+        let content = adw::ButtonContent::builder()
+            .icon_name("list-add-symbolic")
             .label("Add Combatant")
-            .expanded(false)
             .build();
-
-        let group = adw::PreferencesGroup::new();
-
-        let name = adw::EntryRow::builder()
-            .title("Name")
+        let button = gtk::Button::builder()
+            .child(&content)
+            .tooltip_text("Add a new combatant")
+            .css_classes(["suggested-action"])
+            .valign(gtk::Align::Center)
             .build();
+        button.update_property(&[gtk::accessible::Property::Label("Add combatant")]);
 
-        let initiative = adw::SpinRow::builder()
-            .title("Initiative")
-            .adjustment(
-                &gtk::Adjustment::builder()
-                    .lower(-999.0)
-                    .upper(999.0)
-                    .step_increment(1.0)
-                    .page_increment(5.0)
-                    .value(0.0)
-                    .build(),
-            )
-            .digits(0)
-            .build();
+        button.connect_clicked(glib::clone!(
+            #[strong]
+            store,
+            move |btn| {
+                let Some(parent) = btn.root().and_downcast::<gtk::Window>() else {
+                    eprintln!("initiative-tracker: Add Combatant needs a window parent");
+                    return;
+                };
+                present_add_combatant_dialog(&parent, store.clone());
+            }
+        ));
 
-        let max_health = adw::SpinRow::builder()
-            .title("Max HP")
-            .adjustment(
-                &gtk::Adjustment::builder()
-                    .lower(0.0)
-                    .upper(9999.0)
-                    .step_increment(1.0)
-                    .page_increment(5.0)
-                    .value(f64::from(DEFAULT_HEALTH))
-                    .build(),
-            )
-            .digits(0)
-            .build();
-
-        let buttons = gtk::Box::builder()
-            .orientation(gtk::Orientation::Horizontal)
-            .spacing(6)
-            .homogeneous(true)
-            .margin_top(8)
-            .build();
-
-        let pc = gtk::Button::with_label("PC");
-        pc.add_css_class("success");
-        let npc = gtk::Button::with_label("NPC");
-        npc.add_css_class("suggested-action");
-        let monster = gtk::Button::with_label("Monster");
-        monster.add_css_class("destructive-action");
-
-        buttons.append(&pc);
-        buttons.append(&npc);
-        buttons.append(&monster);
-
-        group.add(&name);
-        group.add(&initiative);
-        group.add(&max_health);
-
-        let content = gtk::Box::builder()
-            .orientation(gtk::Orientation::Vertical)
-            .spacing(8)
-            .margin_top(8)
-            .build();
-        content.append(&group);
-        content.append(&buttons);
-        expander.set_child(Some(&content));
-
-        let wire = |btn: gtk::Button, kind: CombatantKind| {
-            btn.connect_clicked(glib::clone!(
-                #[strong]
-                store,
-                #[strong]
-                name,
-                #[strong]
-                initiative,
-                #[strong]
-                max_health,
-                move |_| {
-                    let n = name.text().to_string();
-                    let init = initiative.value() as i32;
-                    let hp = max_health.value() as i32;
-                    if let Err(e) = store.add_combatant(n, kind, init, hp) {
-                        eprintln!("initiative-tracker: add combatant failed: {e}");
-                        return;
-                    }
-                    name.set_text("");
-                    initiative.set_value(0.0);
-                    max_health.set_value(f64::from(DEFAULT_HEALTH));
-                }
-            ));
-        };
-        wire(pc, CombatantKind::Player);
-        wire(npc, CombatantKind::Npc);
-        wire(monster, CombatantKind::Monster);
-
-        Self { expander }
+        Self { button }
     }
+}
+
+fn present_add_combatant_dialog(parent: &gtk::Window, store: StateStore) {
+    let group = adw::PreferencesGroup::new();
+
+    let name = adw::EntryRow::builder()
+        .title("Name")
+        .build();
+
+    let initiative = adw::SpinRow::builder()
+        .title("Initiative")
+        .adjustment(
+            &gtk::Adjustment::builder()
+                .lower(-999.0)
+                .upper(999.0)
+                .step_increment(1.0)
+                .page_increment(5.0)
+                .value(0.0)
+                .build(),
+        )
+        .digits(0)
+        .build();
+
+    let max_health = adw::SpinRow::builder()
+        .title("Max HP")
+        .adjustment(
+            &gtk::Adjustment::builder()
+                .lower(0.0)
+                .upper(9999.0)
+                .step_increment(1.0)
+                .page_increment(5.0)
+                .value(f64::from(DEFAULT_HEALTH))
+                .build(),
+        )
+        .digits(0)
+        .build();
+
+    group.add(&name);
+    group.add(&initiative);
+    group.add(&max_health);
+
+    // The three buttons are the submit action: each adds the combatant as
+    // that kind, so they get a "Add as" heading instead of a separate OK.
+    let kind_heading = gtk::Label::builder()
+        .label("Add as")
+        .xalign(0.0)
+        .css_classes(["heading"])
+        .build();
+
+    let kind_buttons = gtk::Box::builder()
+        .orientation(gtk::Orientation::Horizontal)
+        .spacing(6)
+        .homogeneous(true)
+        .build();
+
+    let pc = gtk::Button::with_label("PC");
+    pc.add_css_class("success");
+    pc.set_tooltip_text(Some("Player character"));
+    let npc = gtk::Button::with_label("NPC");
+    npc.add_css_class("suggested-action");
+    npc.set_tooltip_text(Some("Non-player character"));
+    let monster = gtk::Button::with_label("Monster");
+    monster.add_css_class("destructive-action");
+    monster.set_tooltip_text(Some("Cleared by \"Clear Monsters\""));
+
+    kind_buttons.append(&pc);
+    kind_buttons.append(&npc);
+    kind_buttons.append(&monster);
+
+    let kind_section = gtk::Box::builder()
+        .orientation(gtk::Orientation::Vertical)
+        .spacing(6)
+        .build();
+    kind_section.append(&kind_heading);
+    kind_section.append(&kind_buttons);
+
+    let content = gtk::Box::builder()
+        .orientation(gtk::Orientation::Vertical)
+        .spacing(18)
+        .margin_top(12)
+        .margin_bottom(18)
+        .margin_start(18)
+        .margin_end(18)
+        .build();
+    content.append(&group);
+    content.append(&kind_section);
+
+    let toolbar = adw::ToolbarView::new();
+    toolbar.add_top_bar(&adw::HeaderBar::new());
+    toolbar.set_content(Some(&content));
+
+    let dialog = adw::Dialog::builder()
+        .title("Add Combatant")
+        .child(&toolbar)
+        .content_width(400)
+        .focus_widget(&name)
+        .build();
+
+    let wire = |btn: gtk::Button, kind: CombatantKind| {
+        btn.connect_clicked(glib::clone!(
+            #[strong]
+            store,
+            #[strong]
+            name,
+            #[strong]
+            initiative,
+            #[strong]
+            max_health,
+            #[strong]
+            dialog,
+            move |_| {
+                let n = name.text().to_string();
+                let init = initiative.value() as i32;
+                let hp = max_health.value() as i32;
+                if let Err(e) = store.add_combatant(n, kind, init, hp) {
+                    eprintln!("initiative-tracker: add combatant failed: {e}");
+                    return;
+                }
+                dialog.close();
+            }
+        ));
+    };
+    wire(pc, CombatantKind::Player);
+    wire(npc, CombatantKind::Npc);
+    wire(monster, CombatantKind::Monster);
+
+    dialog.present(Some(parent));
 }
 
 pub struct VisibilityToggles {
@@ -261,7 +314,8 @@ pub struct CombatantList {
 }
 
 impl CombatantList {
-    pub fn build() -> Self {
+    /// `add_button` sits at the right end of the "Combatants" heading row.
+    pub fn build(add_button: &gtk::Button) -> Self {
         let container = gtk::Box::builder()
             .orientation(gtk::Orientation::Vertical)
             .spacing(6)
@@ -270,15 +324,23 @@ impl CombatantList {
         let heading = gtk::Label::builder()
             .label("Combatants")
             .xalign(0.0)
+            .hexpand(true)
             .css_classes(["heading"])
             .build();
+
+        let heading_row = gtk::Box::builder()
+            .orientation(gtk::Orientation::Horizontal)
+            .spacing(6)
+            .build();
+        heading_row.append(&heading);
+        heading_row.append(add_button);
 
         let list = gtk::ListBox::builder()
             .selection_mode(gtk::SelectionMode::None)
             .css_classes(["boxed-list", "combatant-list"])
             .build();
 
-        container.append(&heading);
+        container.append(&heading_row);
         container.append(&list);
 
         Self { container, list }
