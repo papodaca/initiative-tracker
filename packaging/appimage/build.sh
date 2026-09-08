@@ -9,7 +9,7 @@
 # (ARCH is uname -m: x86_64 or aarch64).
 # Requires Ubuntu 26.04-class deps: rustc, cargo, pkg-config,
 # GTK4/libadwaita, GStreamer plugins (base, good, libav) for scene video,
-# curl, file, patchelf, python3.
+# librsvg2-bin (rsvg-convert for the AppImage icon), curl, file, patchelf, python3.
 # Video list thumbnails are not bundled (gst-video-thumbnailer pulls glycin/bwrap).
 # At runtime the app uses the host XDG thumbnailers, same as Files.
 #
@@ -354,15 +354,19 @@ install -Dm755 "${CARGO_TARGET_DIR}/release/initiative-tracker-gtk" \
 bash "${REPO_ROOT}/packaging/install-data.sh" /usr "${APPDIR}"
 
 DESKTOP_FILE="${APPDIR}/usr/share/applications/im.apodaca.InitiativeTracker.desktop"
+ICON_SVG="${REPO_ROOT}/data/icons/hicolor/scalable/apps/im.apodaca.InitiativeTracker.svg"
 ICON_FILE="${APPDIR}/usr/share/icons/hicolor/512x512/apps/im.apodaca.InitiativeTracker.png"
 if [[ ! -f ${DESKTOP_FILE} ]]; then
   echo "Missing desktop file after install: ${DESKTOP_FILE}" >&2
   exit 1
 fi
-if [[ ! -f ${ICON_FILE} ]]; then
-  echo "Missing app icon after install: ${ICON_FILE}" >&2
+if [[ ! -f ${ICON_SVG} ]]; then
+  echo "Missing app icon: ${ICON_SVG}" >&2
   exit 1
 fi
+# linuxdeploy wants a raster for .DirIcon; GNOME installs SVG only.
+mkdir -p "$(dirname "${ICON_FILE}")"
+rsvg-convert -w 512 -h 512 "${ICON_SVG}" -o "${ICON_FILE}"
 
 export APPIMAGE_EXTRACT_AND_RUN=1
 export DEPLOY_GTK_VERSION=4

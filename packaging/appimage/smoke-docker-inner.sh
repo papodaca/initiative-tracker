@@ -19,7 +19,7 @@ apt-get install -y --no-install-recommends \
   gstreamer1.0-gl \
   gobject-introspection \
   gir1.2-gtk-4.0 gir1.2-adw-1 \
-  libglib2.0-bin librsvg2-common \
+  libglib2.0-bin librsvg2-bin librsvg2-common \
   file patchelf \
   dpkg-dev findutils \
   sudo

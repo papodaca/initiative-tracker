@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
-  <path fill="#241f31" d="M3 2h10a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1zm1 2v2h2V4H4zm6 0v2h2V4h-2zM4 10v2h2v-2H4zm3 0v2h2v-2H7zm3 0v2h2v-2h-2z"/>
+  <!-- d20 silhouette with a lightning bolt cut out of the front face. -->
+  <path fill="#2e3436" fill-rule="evenodd" d="M8 0.5 L14.5 4.25 L14.5 11.75 L8 15.5 L1.5 11.75 L1.5 4.25 Z M8.75 4.5 L5.75 8.75 L7.5 8.75 L7.25 11.5 L10.25 7.25 L8.5 7.25 Z"/>
 </svg>
